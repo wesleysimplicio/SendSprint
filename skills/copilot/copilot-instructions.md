@@ -7,18 +7,19 @@ sprint reading or delivery: "ler sprint", "rodar sprint", "send sprint",
 
 ## What SendSprint does
 
-Full 9-step automated sprint delivery:
+Full 10-step automated sprint delivery:
 
 1. **Read sprint** from Jira or Azure DevOps (mcp->api->playwright).
    Supports `--scope mine` for current-user filtering.
 2. **Architecture mapping** — inspect + auto-generate baseline docs if score < 0.6.
 3. **Dev** — tech detection, worktree isolation, install + build.
-4. **Tests** — unit + Playwright E2E with screenshot evidence.
-5. **Security review** — flag-only scan (secrets, env, npm audit).
-6. **Fix loop** — re-build + re-test up to 3 rounds on failure.
-7. **Create PR** — GitHub (gh CLI) or Azure DevOps REST.
-8. **PR review** — diff analysis (TODO, debug statements, long lines).
-9. **Delivered** — RunReport with all evidence.
+4. **Lint** — static analysis per tech (eslint, ruff, clippy, etc.).
+5. **Tests** — unit + Playwright E2E with screenshot evidence.
+6. **Security review** — flag-only scan (secrets, env, npm audit).
+7. **Fix loop** — re-build + re-lint + re-test + re-scan up to 3 rounds. Reports trigger.
+8. **Commit** — git add + commit on worktree branch.
+9. **Create PR** — GitHub (gh CLI) or Azure DevOps REST.
+10. **PR review + Delivered** — diff analysis + RunReport with JSON export.
 
 ## CLI
 

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-05-07
+
+### Added
+
+- Step 4: `LintRunner` with lint commands for 19 tech stacks (eslint, ruff, clippy, golangci-lint, phpcs, rubocop, dart analyze, dotnet format, checkstyle).
+- Step 8: Commit step — `git add -A && git commit` on worktree branch before PR creation. Skips if no changes.
+- Empty-repos guard: explicit "no-repos" step report when no repos resolved.
+- `SprintFlowResult.to_json()` for structured JSON output.
+
+### Changed
+
+- Flow expanded from 9 to 10 steps (lint + commit inserted, PR review merged with delivered).
+- Fix loop (step 7) now re-runs lint in addition to tests/security, and reports which checks triggered retry.
+- All 5 skill manifests updated to reflect 10-step flow.
+
 ## [0.2.0] - 2026-05-07
 
 ### Added

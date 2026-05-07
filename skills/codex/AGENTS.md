@@ -6,7 +6,7 @@ Auto-loaded by Codex CLI when present in repo. Activates on prompts mentioning
 
 ## Mission
 
-End-to-end sprint delivery in 9 steps.
+End-to-end sprint delivery in 10 steps.
 
 ### Step 1 — Read sprint
 Pick the operator: `JiraOperator(sprint_id)` or `AzureDevopsOperator(iteration_path)`.
@@ -18,22 +18,26 @@ Transport: `mcp` -> `api` -> `playwright`. Supports `--scope mine`.
 ### Step 3 — Dev (install + build)
 `DevAgent` per repo with tech detection and worktree isolation.
 
-### Step 4 — Tests
+### Step 4 — Lint
+`LintRunner` static analysis per tech (eslint, ruff, clippy, etc.).
+
+### Step 5 — Tests
 `TestRunner.run_all()` — unit + Playwright E2E with screenshot evidence.
 
-### Step 5 — Security review
+### Step 6 — Security review
 `SecurityReviewer.scan()` — flag-only (secrets, env, npm audit).
 
-### Step 6 — Fix loop
-Re-build + re-test up to 3 rounds on failure.
+### Step 7 — Fix loop
+Re-build + re-lint + re-test + re-scan up to 3 rounds. Reports which checks triggered retry.
 
-### Step 7 — Create PR
+### Step 8 — Commit
+`git add -A && git commit` on worktree branch. Skips if no changes.
+
+### Step 9 — Create PR
 `PrCreator` via GitHub (gh CLI) or Azure DevOps REST.
 
-### Step 8 — PR review
-`PrReviewer` diff analysis (TODO, debug, long lines).
-
-### Step 9 — Delivered
+### Step 10 — PR review + Delivered
+`PrReviewer` diff analysis. RunReport with `to_json()` export.
 
 ## CLI
 

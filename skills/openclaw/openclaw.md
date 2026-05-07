@@ -8,18 +8,19 @@ Skill manifest for the Openclaw agent runtime.
 - en: "send sprint", "sprint flow", "deliver sprint", "read sprint"
 - es: "ejecutar sprint", "leer sprint"
 
-## 9-Step Flow
+## 10-Step Flow
 
 1. **Read sprint** — `JiraOperator` or `AzureDevopsOperator` (mcp->api->playwright).
    Supports `--scope mine` for current-user filtering.
 2. **Architecture mapping** — inspect + auto-build baseline docs if score < 0.6.
 3. **Dev** — `DevAgent` with tech detection, worktree isolation, install + build.
-4. **Tests** — `TestRunner` unit + Playwright E2E, screenshot evidence (pass + fail).
-5. **Security review** — `SecurityReviewer` flag-only (secrets, env, npm audit).
-6. **Fix loop** — re-build + re-test up to 3 rounds.
-7. **Create PR** — `PrCreator` GitHub (gh CLI) or Azure DevOps REST.
-8. **PR review** — `PrReviewer` diff analysis.
-9. **Delivered** — RunReport with all steps, evidence, findings.
+4. **Lint** — `LintRunner` static analysis per tech (eslint, ruff, clippy, etc.).
+5. **Tests** — `TestRunner` unit + Playwright E2E, screenshot evidence (pass + fail).
+6. **Security review** — `SecurityReviewer` flag-only (secrets, env, npm audit).
+7. **Fix loop** — re-build + re-lint + re-test + re-scan up to 3 rounds. Reports trigger.
+8. **Commit** — `git add -A && git commit` on worktree branch. Skips if no changes.
+9. **Create PR** — `PrCreator` GitHub (gh CLI) or Azure DevOps REST.
+10. **PR review + Delivered** — `PrReviewer` diff analysis. RunReport with `to_json()`.
 
 ## CLI
 

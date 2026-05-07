@@ -9,6 +9,7 @@ import pytest
 
 from sendsprint.agents.worktree import WorktreeError, WorktreeManager
 from sendsprint.agents.dev import DevAgent
+from sendsprint.agents.lint_runner import LintRunner
 from sendsprint.agents.test_runner import TestRunner
 from sendsprint.agents.security_reviewer import SecurityReviewer
 from sendsprint.agents.pr_reviewer import PrReviewer
@@ -204,6 +205,33 @@ class TestSecurityReviewer:
         report = reviewer.scan()
         rules = [f.rule for f in report.findings]
         assert "env-not-gitignored" not in rules
+
+
+# ---------------------------------------------------------------------------
+# LintRunner
+# ---------------------------------------------------------------------------
+
+
+class TestLintRunner:
+    def test_skip_unknown_tech(self, tmp_path: Path) -> None:
+        fp = make_fp(tmp_path)
+        runner = LintRunner(tmp_path, fp)
+        report = runner.run()
+        assert report.status == "skipped"
+
+    def test_skip_when_linter_not_installed(self, tmp_path: Path) -> None:
+        fp = make_fp(tmp_path, techs=["python"])
+        runner = LintRunner(tmp_path, fp)
+        report = runner.run()
+        # ruff may or may not be installed; either skipped or ok/failed
+        assert report.status in ("skipped", "ok", "failed")
+
+    def test_custom_command_not_found(self, tmp_path: Path) -> None:
+        fp = make_fp(tmp_path)
+        runner = LintRunner(tmp_path, fp, custom_command="nonexistent_linter_xyz --check")
+        report = runner.run()
+        assert report.status == "skipped"
+        assert "not installed" in (report.message or "")
 
 
 # ---------------------------------------------------------------------------

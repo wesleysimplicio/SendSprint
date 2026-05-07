@@ -8,19 +8,20 @@ Works across Claude, Codex, Hermes Agent, Openclaw, and GitHub Copilot.
 
 ---
 
-## 9-Step Flow
+## 10-Step Flow
 
 | Step | Name | What it does |
 |------|------|-------------|
 | 1 | **Read sprint** | Fetch stories/tasks/bugs from Jira or Azure DevOps |
 | 2 | **Architecture mapping** | Inspect repo docs; auto-generate baseline if score < 0.6 |
 | 3 | **Dev** | Detect tech stack, create worktree, install deps + build |
-| 4 | **Tests** | Unit tests + Playwright E2E with screenshot evidence |
-| 5 | **Security review** | Flag-only scan (secrets, env files, npm audit) |
-| 6 | **Fix loop** | If tests/security fail: re-build + re-test (max 3 rounds) |
-| 7 | **Create PR** | GitHub (gh CLI) or Azure DevOps REST API |
-| 8 | **PR review** | Diff analysis (TODO markers, debug statements, long lines) |
-| 9 | **Delivered** | RunReport with all steps, evidence, and findings |
+| 4 | **Lint** | Static analysis per tech (eslint, ruff, clippy, etc.) |
+| 5 | **Tests** | Unit tests + Playwright E2E with screenshot evidence |
+| 6 | **Security review** | Flag-only scan (secrets, env files, npm audit) |
+| 7 | **Fix loop** | If lint/tests/security fail: re-build + re-run (max 3 rounds) |
+| 8 | **Commit** | `git add -A && git commit` on worktree branch |
+| 9 | **Create PR** | GitHub (gh CLI) or Azure DevOps REST API |
+| 10 | **PR review + Delivered** | Diff analysis + RunReport with JSON export |
 
 Transport priority: `mcp` -> `api` -> `playwright`.
 
@@ -131,6 +132,7 @@ sendsprint/
 ├── agents/
 │   ├── worktree.py    Git worktree isolation for parallel branches
 │   ├── dev.py         Install + build per tech stack (16 package managers)
+│   ├── lint_runner.py Static analysis per tech (19 linters)
 │   ├── test_runner.py Unit + E2E with screenshot evidence
 │   ├── security_reviewer.py  Secret scan, env audit, npm audit
 │   ├── pr_creator.py  GitHub (gh) / Azure DevOps (REST) PR creation
@@ -190,7 +192,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-94 tests covering operators, architecture mapper/builder, tech detector, scope filtering, workspace loading, and all agents.
+97 tests covering operators, architecture mapper/builder, tech detector, scope filtering, workspace loading, and all agents (including lint runner).
 
 ---
 

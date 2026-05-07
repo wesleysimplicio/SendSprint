@@ -8,19 +8,20 @@ Skill manifest consumed by Hermes Agent (https://github.com/hermes-agent).
 - en: "send sprint", "sprint flow", "deliver sprint", "read sprint"
 - es: "ejecutar sprint", "leer sprint"
 
-## 9-Step Flow
+## 10-Step Flow
 
 | Step | Name | Agent/Module |
 |------|------|-------------|
 | 1 | Read sprint | `JiraOperator` / `AzureDevopsOperator` |
 | 2 | Architecture mapping | `ArchitectureMapper` + `build_architecture()` |
 | 3 | Dev (install + build) | `DevAgent` with worktree isolation |
-| 4 | Tests (unit + E2E) | `TestRunner` with screenshot evidence |
-| 5 | Security review | `SecurityReviewer` (flag-only) |
-| 6 | Fix loop | Re-build + re-test (max 3 rounds) |
-| 7 | Create PR | `PrCreator` (GitHub / Azure DevOps) |
-| 8 | PR review | `PrReviewer` (diff analysis) |
-| 9 | Delivered | RunReport with all evidence |
+| 4 | Lint | `LintRunner` (eslint, ruff, clippy, etc.) |
+| 5 | Tests (unit + E2E) | `TestRunner` with screenshot evidence |
+| 6 | Security review | `SecurityReviewer` (flag-only) |
+| 7 | Fix loop | Re-build + re-lint + re-test + re-scan (max 3) |
+| 8 | Commit | `git add -A && git commit` on worktree branch |
+| 9 | Create PR | `PrCreator` (GitHub / Azure DevOps) |
+| 10 | PR review + Delivered | `PrReviewer` + RunReport with `to_json()` |
 
 Transport priority: `mcp` -> `api` -> `playwright`.
 Supports `--scope mine` to filter only current user's items.

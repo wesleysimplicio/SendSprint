@@ -10,7 +10,7 @@ Trigger automatically whenever the user asks to "ler sprint", "rodar sprint", "s
 "sprint flow", "executar sprint", "iniciar entrega da sprint", "ler issues da sprint",
 or any equivalent in English / pt-BR / es-ES.
 
-## 9-Step Flow
+## 10-Step Flow
 
 ### Step 1 — Read sprint
 Pick the operator from the source the user names:
@@ -29,25 +29,30 @@ docs/deploy.md) via `build_architecture()`, then re-inspect.
 Per repo, detect tech stack via `detect_tech()`, create a git worktree for isolation,
 run install + build via `DevAgent`.
 
-### Step 4 — Tests (unit + E2E)
+### Step 4 — Lint
+`LintRunner` runs static analysis per tech (eslint, ruff, clippy, etc.). 19 stacks supported.
+
+### Step 5 — Tests (unit + E2E)
 Run unit tests and Playwright E2E via `TestRunner`. Screenshot evidence captured
 for both pass and fail states in `sendsprint-evidence/`.
 
-### Step 5 — Security review (flag only)
+### Step 6 — Security review (flag only)
 `SecurityReviewer` scans for hardcoded secrets, env files not gitignored,
 npm audit vulnerabilities. Flags only — never auto-fixes.
 
-### Step 6 — Fix loop
-If tests or security fail, re-build + re-test up to 3 times.
+### Step 7 — Fix loop
+If lint, tests, or security fail, re-build + re-lint + re-test + re-scan up to 3 times.
+Reports which checks triggered the retry.
 
-### Step 7 — Create PR
+### Step 8 — Commit
+`git add -A && git commit` on the worktree branch. Skips if no changes.
+
+### Step 9 — Create PR
 `PrCreator` creates PR on GitHub (gh CLI) or Azure DevOps (REST API).
 
-### Step 8 — PR review
+### Step 10 — PR review + Delivered
 `PrReviewer` analyzes the diff for TODO markers, debug statements, long lines.
-
-### Step 9 — Delivered
-PR delivered. RunReport with all steps, evidence, and findings.
+RunReport with all steps, evidence, and findings. Supports `to_json()` export.
 
 ## CLI
 
