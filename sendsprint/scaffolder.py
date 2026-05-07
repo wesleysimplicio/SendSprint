@@ -88,7 +88,7 @@ class Scaffolder:
         signals = RepoSignals(
             repo_path=self.repo_path,
             fingerprint_json=fp.model_dump_json(indent=2),
-            primary_languages=list(getattr(fp, "languages", []) or []),
+            primary_languages=list(getattr(fp, "techs", []) or []),
             file_count=_count_files(self.repo_path),
         )
         for name in MANIFEST_CANDIDATES:
@@ -103,18 +103,43 @@ class Scaffolder:
         signals.git_authors = _git(self.repo_path, ["shortlog", "-sne", "--all"])
         return signals
 
-    def generate(self, signals: RepoSignals) -> dict[str, str]:
-        """Ask the LLM to draft the four spec docs. Returns ``{key: markdown}``."""
-        client = self.llm or _default_client()
+    def generate(
+        self,
+        signals: RepoSignals,
+        *,
+        offline: bool = False,
+        on_step: callable = None,  # type: ignore[assignment]
+    ) -> dict[str, str]:
+        """Draft the four spec docs. With ``offline=True`` skips the LLM and emits
+        deterministic templates filled with collected facts.
+
+        ``on_step(key)`` is invoked before each spec is generated (CLI uses it to
+        animate a spinner).
+        """
         today = datetime.date.today().isoformat()
+        sections_by_key = {
+            "vision": _VISION_SECTIONS,
+            "domain": _DOMAIN_SECTIONS,
+            "design": _DESIGN_SECTIONS,
+            "patterns": _PATTERNS_SECTIONS,
+        }
+        outputs: dict[str, str] = {}
+        if offline:
+            for key, sections in sections_by_key.items():
+                if on_step:
+                    on_step(key)
+                outputs[key] = _add_header(key, today, _offline_body(sections, signals))
+            return outputs
+        client = self.llm or _default_client()
         prompts = {
             "vision": self._prompt_vision(signals),
             "domain": self._prompt_domain(signals),
             "design": self._prompt_design(signals),
             "patterns": self._prompt_patterns(signals),
         }
-        outputs: dict[str, str] = {}
         for key, prompt in prompts.items():
+            if on_step:
+                on_step(key)
             body = client.complete(prompt, system=self.PROMPT_HEADER)
             outputs[key] = _add_header(key, today, body)
         return outputs
@@ -132,66 +157,77 @@ class Scaffolder:
             result.created.append(target)
         return result
 
-    def run(self, *, force: bool = False) -> ScaffoldResult:
+    def run(
+        self,
+        *,
+        force: bool = False,
+        offline: bool = False,
+        on_step: callable = None,  # type: ignore[assignment]
+    ) -> ScaffoldResult:
         """Discover + generate + write in one shot."""
         signals = self.discover()
-        outputs = self.generate(signals)
+        outputs = self.generate(signals, offline=offline, on_step=on_step)
         result = self.write(outputs, force=force)
         result.signals = signals
         return result
 
     def _prompt_vision(self, s: RepoSignals) -> str:
-        return _build_prompt(
-            title="VISION.md",
-            sections=[
-                "## North star",
-                "## Non-goals",
-                "## Target users",
-                "## Success metrics",
-                "## Open questions",
-            ],
-            signals=s,
-        )
+        return _build_prompt(title="VISION.md", sections=_VISION_SECTIONS, signals=s)
 
     def _prompt_domain(self, s: RepoSignals) -> str:
-        return _build_prompt(
-            title="DOMAIN.md",
-            sections=[
-                "## Vocabulary",
-                "## Core entities",
-                "## Lifecycles",
-                "## Invariants",
-                "## External systems",
-            ],
-            signals=s,
-        )
+        return _build_prompt(title="DOMAIN.md", sections=_DOMAIN_SECTIONS, signals=s)
 
     def _prompt_design(self, s: RepoSignals) -> str:
-        return _build_prompt(
-            title="DESIGN.md",
-            sections=[
-                "## Bird's-eye",
-                "## Layers",
-                "## Data flow",
-                "## Concurrency model",
-                "## Failure model",
-                "## Extension points",
-            ],
-            signals=s,
-        )
+        return _build_prompt(title="DESIGN.md", sections=_DESIGN_SECTIONS, signals=s)
 
     def _prompt_patterns(self, s: RepoSignals) -> str:
-        return _build_prompt(
-            title="PATTERNS.md",
-            sections=[
-                "## File header convention",
-                "## Error handling",
-                "## I/O boundary",
-                "## Tests",
-                "## DON'Ts",
-            ],
-            signals=s,
-        )
+        return _build_prompt(title="PATTERNS.md", sections=_PATTERNS_SECTIONS, signals=s)
+
+
+_VISION_SECTIONS: list[str] = [
+    "## North star",
+    "## Non-goals",
+    "## Target users",
+    "## Success metrics",
+    "## Open questions",
+]
+_DOMAIN_SECTIONS: list[str] = [
+    "## Vocabulary",
+    "## Core entities",
+    "## Lifecycles",
+    "## Invariants",
+    "## External systems",
+]
+_DESIGN_SECTIONS: list[str] = [
+    "## Bird's-eye",
+    "## Layers",
+    "## Data flow",
+    "## Concurrency model",
+    "## Failure model",
+    "## Extension points",
+]
+_PATTERNS_SECTIONS: list[str] = [
+    "## File header convention",
+    "## Error handling",
+    "## I/O boundary",
+    "## Tests",
+    "## DON'Ts",
+]
+
+
+def _offline_body(sections: list[str], signals: RepoSignals) -> str:
+    """Deterministic Markdown body using only collected facts. No LLM call."""
+    facts_block = (
+        f"### Detected\n"
+        f"- techs: {', '.join(signals.primary_languages) or 'unknown'}\n"
+        f"- files: {signals.file_count}\n"
+        f"- manifests: {', '.join(signals.manifests.keys()) or 'none'}\n"
+        f"- docs: {', '.join(signals.docs.keys()) or 'none'}\n"
+    )
+    body = facts_block + "\n"
+    for s in sections:
+        body += f"{s}\n\n_TODO:_\n\n"
+    return body
 
 
 def _build_prompt(*, title: str, sections: list[str], signals: RepoSignals) -> str:

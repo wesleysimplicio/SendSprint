@@ -174,21 +174,43 @@ def run_flow(
 def init(
     repo_path: Path = typer.Argument(Path("."), help="Repo to scan and scaffold .specs/ for"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing spec files"),
+    offline: bool = typer.Option(
+        False, "--offline", help="Skip the LLM and write deterministic templates"
+    ),
 ) -> None:
-    """Auto-discover repo + LLM-fill .specs/{product,architecture}/*.md baselines."""
+    """Auto-discover repo + LLM-fill .specs/{product,architecture}/*.md baselines.
+
+    Use ``--offline`` to skip the LLM call (no API key required) and emit
+    template-only files seeded with detected facts. Run ``init --force`` after
+    setting your API key to overwrite with LLM-drafted versions.
+    """
+    from rich.status import Status
+
     repo = repo_path.expanduser().resolve()
     console.print(f"[bold]scaffolding[/bold] {repo}")
     scaffolder = Scaffolder(repo)
-    signals = scaffolder.discover()
+    with Status("[cyan]scanning repo...[/cyan]", console=console):
+        signals = scaffolder.discover()
     langs = ", ".join(signals.primary_languages) or "unknown"
-    console.print(f"  files={signals.file_count} languages={langs}")
+    console.print(f"  files={signals.file_count} techs={langs}")
     console.print(f"  manifests={list(signals.manifests)} docs={list(signals.docs)}")
-    outputs = scaffolder.generate(signals)
+    label = "templating" if offline else "asking LLM"
+    with Status(f"[cyan]{label}: starting...[/cyan]", console=console) as status:
+
+        def _on_step(key: str) -> None:
+            status.update(f"[cyan]{label}: {key}.md[/cyan]")
+
+        outputs = scaffolder.generate(signals, offline=offline, on_step=_on_step)
     result = scaffolder.write(outputs, force=force)
     for p in result.created:
         console.print(f"[green]created[/green] {p.relative_to(repo)}")
     for p in result.skipped:
         console.print(f"[yellow]skipped[/yellow] {p.relative_to(repo)} (exists, use --force)")
+    if offline:
+        console.print(
+            "[yellow]note:[/yellow] templates only. set ANTHROPIC_API_KEY (or LLM_PROVIDER) "
+            "and re-run with [bold]--force[/bold] for LLM-drafted specs."
+        )
 
 
 @app.command()

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-05-07
+
+### Added
+
+- `sendsprint init --offline` flag — writes deterministic templates (facts block + `_TODO:_` placeholders) without an LLM call. Useful for CI, demos, and code review.
+- Rich `Status` spinner during `init`: `scanning repo...` while signals are gathered, then `asking LLM: vision.md / domain.md / design.md / patterns.md` (or `templating: …` in offline mode) so the user sees per-spec progress.
+- `Scaffolder.generate(..., on_step=callback)` — invoked before each spec is generated; CLI uses it to update the spinner. Same callback fires in offline and LLM paths.
+- `tests/test_scaffolder.py` — 14 tests covering `discover`, offline + LLM `generate` paths, `write` (create/skip/force), `run` end-to-end, and module-level helpers (`_offline_body`, `_build_prompt`, `_add_header`, section constants).
+
+### Fixed
+
+- `Scaffolder.discover()` now reads `TechFingerprint.techs` instead of the non-existent `languages` attribute, so `signals.primary_languages` is correctly populated and shows up in the CLI summary line.
+
 ## [0.4.0] - 2026-05-07
 
 ### Added
