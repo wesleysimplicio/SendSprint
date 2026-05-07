@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-05-07
+
+### Added
+
+- `.specs/product/` — `VISION.md` (north star, non-goals, success metrics) and `DOMAIN.md` (vocabulary, invariants, lifecycles).
+- `.specs/architecture/` — `DESIGN.md` (bird's-eye + layers + data flow + concurrency + failure model + extension points), `PATTERNS.md` (file headers, Pydantic v2, subprocess, httpx, pathlib, exceptions, typing — with DON'Ts table).
+- `.specs/architecture/ADR-001-stack.md` — Python 3.11+ + Pydantic v2 + Typer + Rich + httpx + playwright + pyyaml.
+- `.specs/architecture/ADR-002-multi-transport.md` — fixed `TRANSPORT_ORDER = ("mcp", "api", "playwright")`.
+- `.specs/architecture/ADR-003-mock-fallback.md` — three-tier test strategy: unit / integration (VCR) / canary.
+- `.specs/architecture/ADR-004-worktree-isolation.md` — `WorktreeManager` per-branch isolation pattern.
+- `.specs/architecture/ADR-005-flag-only-security.md` — `SecurityReviewer` halts run on findings, never auto-fixes.
+- `.specs/workflow/WORKFLOW.md` — daily loop, Conventional Commits, test discipline, lint+format, branch naming, release process.
+- `.specs/workflow/CONTRIBUTING.md` — what reviewers expect, PR requirements, code review SLA, ADR/skill manifest contribution flow.
+- `.claude/hooks/post-edit.sh` — PostToolUse hook auto-formats `.py` files via `ruff format` + lint check.
+- `.claude/hooks/pre-commit.sh` — PreToolUse hook blocks `git commit` on `ruff check` or unit-tier `pytest` failure.
+- `templates/task-template.md` — task spec scaffold (Goal/Why/Scope/Acceptance/Plan/Files/Risks/ADRs/Effort/Owner).
+- `templates/ADR-template.md` — ADR scaffold (Status/Date/Deciders/Supersedes/Context/Decision/Consequences/Alternatives/Implementation notes/See also).
+
+### Changed
+
+- Repo structure now AI-friendly per the canonical layout: `.specs/` (product/architecture/workflow), `.claude/hooks/`, `templates/`, `skills/` (5 platforms), root master files (`AGENTS.md`, `CHANGELOG.md`, `README.md`).
+
 ## [0.2.2] - 2026-05-07
 
 ### Fixed

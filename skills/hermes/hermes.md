@@ -1,53 +1,105 @@
-# SendSprint v0.2 - Hermes Agent
+---
+name: sendsprint
+description: SendSprint 10-step sprint delivery flow (Jira/ADO → PR). Hermes-compatible skill manifest.
+version: 0.2.2
+platform: hermes
+---
 
-Skill manifest consumed by Hermes Agent (https://github.com/hermes-agent).
+# SendSprint — Hermes agent skill
+
+> Canonical project instructions: [/AGENTS.md](../../AGENTS.md). This file = Hermes-specific manifest.
+
+---
 
 ## Trigger
 
-- pt-BR: "ler sprint", "rodar sprint", "executar sprint", "iniciar entrega da sprint"
-- en: "send sprint", "sprint flow", "deliver sprint", "read sprint"
-- es: "ejecutar sprint", "leer sprint"
+- pt-BR: "rode o sendsprint", "executar sprint", "entregar sprint", "processar sprint do Jira", "processar sprint do ADO"
+- en: "run sendsprint", "execute sprint", "deliver sprint", "process Jira sprint", "process ADO sprint", "ship sprint"
+- es: "ejecutar sprint", "procesar sprint", "entregar sprint"
 
-## 10-Step Flow
+---
 
-| Step | Name | Agent/Module |
-|------|------|-------------|
-| 1 | Read sprint | `JiraOperator` / `AzureDevopsOperator` |
-| 2 | Architecture mapping | `ArchitectureMapper` + `build_architecture()` |
-| 3 | Dev (install + build) | `DevAgent` with worktree isolation |
-| 4 | Lint | `LintRunner` (eslint, ruff, clippy, etc.) |
-| 5 | Tests (unit + E2E) | `TestRunner` with screenshot evidence |
-| 6 | Security review | `SecurityReviewer` (flag-only) |
-| 7 | Fix loop | Re-build + re-lint + re-test + re-scan (max 3) |
-| 8 | Commit | `git add -A && git commit` on worktree branch |
-| 9 | Create PR | `PrCreator` (GitHub / Azure DevOps) |
-| 10 | PR review + Delivered | `PrReviewer` + RunReport with `to_json()` |
+## Steps
 
-Transport priority: `mcp` -> `api` -> `playwright`.
-Supports `--scope mine` to filter only current user's items.
-Supports `--workspace workspace.yaml` for multi-repo workspaces.
+| Step | Name | Module | Notes |
+|------|------|--------|-------|
+| 1 | Read sprint | `JiraOperator` / `AzureDevopsOperator` | Transport `mcp` → `api` → `playwright` |
+| 2 | Architecture mapping | `ArchitectureMapper` + `build_architecture()` | Auto-baseline if score < 0.6 |
+| 3 | Dev (install + build) | `DevAgent` + `WorktreeManager` + `detect_tech` | Per repo, parallel-safe |
+| 4 | Lint | `LintRunner` | 19 stacks (eslint/ruff/clippy/etc.) |
+| 5 | Tests | `TestRunner.run_unit() + run_e2e()` | Screenshot evidence in `evidence/` |
+| 6 | Security review | `SecurityReviewer.scan()` | Flag-only (ADR-005) |
+| 7 | Fix loop | re-run dev/lint/tests/security | Max 3 rounds (`MAX_FIX_LOOPS`) |
+| 8 | Commit + push | `git add` → `commit` → `push --force-with-lease` | Per worktree branch |
+| 9 | Create PR | `PrCreator.create()` | GitHub `gh` / ADO REST |
+| 10 | PR review + Delivered | `PrReviewer.review_diff()` + `RunReport.to_json()` | Diff static checks |
 
-## CLI
+---
+
+## Stack
+
+Python ≥ 3.11 · Pydantic v2 · Typer · Rich · httpx · playwright (sync) · pyyaml.
+
+---
+
+## Comandos
 
 ```bash
-sendsprint run jira 1234 --workspace workspace.yaml --scope mine
-sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+sendsprint version
 sendsprint detect-tech ./repo
 sendsprint check-architecture ./repo --build
+sendsprint read-jira 42
+sendsprint read-ado "Team\\Sprint 12"
+sendsprint run jira 42 --workspace workspace.yaml --scope mine -o report.json
+sendsprint run azuredevops "Sprint 12" --repo ./repo
 ```
 
-## Python
+---
+
+## Padrão de código
 
 ```python
 from sendsprint.flow import SprintFlow
 from sendsprint.operators import JiraOperator
+from sendsprint.workspace import load_workspace
+from sendsprint.scope import build_scope
 
-result = SprintFlow(operator=JiraOperator()).run(sprint_id=1234)
+ws = load_workspace("workspace.yaml")
+scope = build_scope(mode="mine", user_email="dev@example.com")
+flow = SprintFlow(operator=JiraOperator(), workspace=ws, scope=scope)
+result = flow.run(sprint_id=42)
+print(result.to_json())
 ```
+
+---
 
 ## Env
 
-`JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`,
-`AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PAT`,
-`PLAYWRIGHT_CDP_URL`,
-`LLM_PROVIDER`, `LLM_MODEL`, provider key (`ANTHROPIC_API_KEY` etc).
+| Var | Required for |
+|---|---|
+| `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` | Jira API |
+| `AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PAT` | Azure DevOps API |
+| `PLAYWRIGHT_CDP_URL` | Playwright fallback (default `http://127.0.0.1:9222`) |
+| `LLM_PROVIDER`, `LLM_MODEL`, provider key (`ANTHROPIC_API_KEY` etc.) | LLM step (optional) |
+
+---
+
+## Pegadinhas
+
+- Transport order fixed: `mcp` → `api` → `playwright`.
+- Worktrees real — auto-cleanup in `__exit__`.
+- Fix loop max 3 → fail.
+- Security flag-only (ADR-005).
+- Step numbers must match flow order.
+- Push must precede PR.
+
+---
+
+## Definition of Done
+
+- [ ] All 10 steps reported
+- [ ] `RunReport.failed == false`
+- [ ] PR URL per repo with changes
+- [ ] `report.json` exported
+- [ ] Worktrees cleaned up
+- [ ] Zero security findings
