@@ -63,9 +63,25 @@ sendsprint/
 ├── scope.py           --scope mine filter
 ├── flow/sprint_flow.py 10-step orchestrator
 ├── llm/               Provider-agnostic LLM client
-└── cli.py             Typer CLI entrypoint
+├── credentials.py     OS keyring (Keychain/Secret Service/Credential Manager)
+├── profile.py         ~/.config/sendsprint/profile.yaml (chmod 600)
+├── scaffolder.py      Auto-discovery + LLM-fill `.specs/` on first run
+└── cli.py             Typer CLI entrypoint (commands: version, init, login, logout, sprint, run, …)
 
-skills/                Per-platform manifests (Claude/Codex/Hermes/Openclaw/Copilot)
+skills/                Per-platform manifests
+  ├── claude/          SKILL.md (full reference)
+  ├── codex/           AGENTS.md
+  ├── hermes/          hermes.md
+  ├── openclaw/        openclaw.md
+  ├── copilot/         copilot-instructions.md
+  ├── cursor/          sendsprint.mdc (Cursor rule, alwaysApply)
+  ├── windsurf/        sendsprint.md (Windsurf rule, trigger:always_on)
+  ├── kiro/            sendsprint.md (.kiro/steering/ placement)
+  ├── zed/             sendsprint.md (.rules placement)
+  ├── cline/           .clinerules (VSCode Cline)
+  ├── continue/        config.json (Continue customCommands + rules)
+  ├── aider/           CONVENTIONS.md (aider --read)
+  └── cody/            sendsprint.md (Sourcegraph Cody)
 .specs/                Product/architecture/workflow specs + ADRs
 .claude/hooks/         Pre/post-edit hooks
 templates/             Task + ADR templates
@@ -90,7 +106,14 @@ ruff check sendsprint/
 ruff format sendsprint/
 mypy sendsprint/
 
-# CLI
+# CLI — chat-trigger UX (single command for the user)
+sendsprint sprint                                # zero-arg: uses cached profile + keyring
+sendsprint init                                  # auto-discover stack, LLM-fill .specs/
+sendsprint login jira                            # store creds in OS keyring (one-time)
+sendsprint login azuredevops                     # idem for ADO PAT
+sendsprint logout jira                           # delete keyring entry
+
+# CLI — granular (operators)
 sendsprint version
 sendsprint detect-tech ./repo
 sendsprint check-architecture ./repo --build
@@ -99,6 +122,37 @@ sendsprint read-ado "Team\\Sprint 12"
 sendsprint run jira 42 --workspace workspace.yaml --scope mine -o report.json
 sendsprint run azuredevops "Sprint 12" --repo ./repo
 ```
+
+### Chat-trigger UX
+
+The skill is wired in **8 IDE manifests** under `skills/` so the user types one
+phrase in the assistant chat and the agent runs `sendsprint sprint`. Recognised
+trigger phrases (any of):
+
+- pt-BR: `rode o sendsprint`, `executar sprint`, `Faça todas as minhas tarefas da sprint`, `entregar sprint`
+- en: `run sendsprint`, `ship my sprint`, `deliver my sprint`, `process my Jira sprint`, `process my ADO sprint`
+- es: `ejecutar sprint`, `procesar sprint`
+- slash: `/sendsprint`
+
+Credentials prompted **only on first run**, then persisted to OS keyring
+(Keychain / Secret Service / Credential Manager). Non-secret prefs (org, project,
+default sprint, scope) live in `~/.config/sendsprint/profile.yaml` (chmod 600).
+
+| IDE | Manifest path inside repo | Placement in user's repo |
+|---|---|---|
+| Claude Code | `skills/claude/SKILL.md` | `~/.claude/skills/sendsprint/SKILL.md` |
+| GitHub Copilot | `skills/copilot/copilot-instructions.md` | `.github/copilot-instructions.md` |
+| Codex CLI | `skills/codex/AGENTS.md` | `AGENTS.md` |
+| Cursor | `skills/cursor/sendsprint.mdc` | `.cursor/rules/sendsprint.mdc` |
+| Windsurf | `skills/windsurf/sendsprint.md` | `.windsurf/rules/sendsprint.md` |
+| Kiro | `skills/kiro/sendsprint.md` | `.kiro/steering/sendsprint.md` |
+| Zed | `skills/zed/sendsprint.md` | `.rules` (or appended) |
+| Cline (VSCode) | `skills/cline/.clinerules` | `.clinerules` |
+| Continue | `skills/continue/config.json` | `~/.continue/config.json` or `.continue/config.json` |
+| Aider | `skills/aider/CONVENTIONS.md` | `CONVENTIONS.md` (loaded with `aider --read`) |
+| Sourcegraph Cody | `skills/cody/sendsprint.md` | `.sourcegraph/cody/instructions.md` or `.cody/commands/*.json` |
+| Hermes | `skills/hermes/hermes.md` | per-tool location |
+| Openclaw | `skills/openclaw/openclaw.md` | per-tool location |
 
 ---
 
@@ -211,7 +265,7 @@ Refs ADR-005
 - **ADRs**: `.specs/architecture/ADR-*.md`
 - **Workflow**: `.specs/workflow/WORKFLOW.md`
 - **Contributing**: `.specs/workflow/CONTRIBUTING.md`
-- **Per-platform skills**: `skills/{claude,codex,hermes,openclaw,copilot}/`
+- **Per-platform skills**: `skills/{claude,codex,hermes,openclaw,copilot,cursor,windsurf,kiro,zed,cline,continue,aider,cody}/`
 - **Templates**: `templates/`
 
 ---

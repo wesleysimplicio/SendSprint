@@ -6,17 +6,18 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from sendsprint import __version__
+from sendsprint import __version__, credentials
+from sendsprint import profile as profile_mod
 from sendsprint.architecture import ArchitectureMapper, build_architecture
 from sendsprint.flow import SprintFlow
 from sendsprint.models import Sprint
 from sendsprint.operators import AzureDevopsOperator, JiraOperator
+from sendsprint.scaffolder import Scaffolder
 from sendsprint.scope import build_scope
 from sendsprint.tech import detect_tech
 from sendsprint.workspace import load_workspace
@@ -39,10 +40,10 @@ def version() -> None:
 def read_jira(
     sprint_id: int = typer.Argument(..., help="Jira sprint id"),
     transport: str = typer.Option("auto", help="auto | mcp | api | playwright"),
-    base_url: Optional[str] = typer.Option(None, envvar="JIRA_BASE_URL"),
-    email: Optional[str] = typer.Option(None, envvar="JIRA_EMAIL"),
-    api_token: Optional[str] = typer.Option(None, envvar="JIRA_API_TOKEN"),
-    output: Optional[Path] = typer.Option(None, help="Write Sprint JSON to this path"),
+    base_url: str | None = typer.Option(None, envvar="JIRA_BASE_URL"),
+    email: str | None = typer.Option(None, envvar="JIRA_EMAIL"),
+    api_token: str | None = typer.Option(None, envvar="JIRA_API_TOKEN"),
+    output: Path | None = typer.Option(None, help="Write Sprint JSON to this path"),
 ) -> None:
     """Step 1 — read a Jira sprint and print its items."""
     operator = JiraOperator(
@@ -59,10 +60,10 @@ def read_jira(
 def read_ado(
     iteration_path: str = typer.Argument(..., help="e.g. MyTeam\\Sprint 12"),
     transport: str = typer.Option("auto", help="auto | mcp | api | playwright"),
-    organization: Optional[str] = typer.Option(None, envvar="AZURE_DEVOPS_ORG"),
-    project: Optional[str] = typer.Option(None, envvar="AZURE_DEVOPS_PROJECT"),
-    pat: Optional[str] = typer.Option(None, envvar="AZURE_DEVOPS_PAT"),
-    output: Optional[Path] = typer.Option(None),
+    organization: str | None = typer.Option(None, envvar="AZURE_DEVOPS_ORG"),
+    project: str | None = typer.Option(None, envvar="AZURE_DEVOPS_PROJECT"),
+    pat: str | None = typer.Option(None, envvar="AZURE_DEVOPS_PAT"),
+    output: Path | None = typer.Option(None),
 ) -> None:
     """Step 1 — read an Azure DevOps iteration."""
     operator = AzureDevopsOperator(
@@ -108,13 +109,13 @@ def detect_tech_cmd(
 def run_flow(
     source: str = typer.Argument(..., help="jira | azuredevops"),
     identifier: str = typer.Argument(..., help="sprint id or iteration path"),
-    workspace_file: Optional[Path] = typer.Option(
+    workspace_file: Path | None = typer.Option(
         None, "--workspace", "-w", help="workspace.yaml path"
     ),
-    repo_path: Optional[Path] = typer.Option(None, "--repo", "-r", exists=True, file_okay=False),
+    repo_path: Path | None = typer.Option(None, "--repo", "-r", exists=True, file_okay=False),
     transport: str = typer.Option("auto"),
     scope_mode: str = typer.Option("all", "--scope", help="all | mine"),
-    output: Optional[Path] = typer.Option(None, "-o", help="Write RunReport JSON"),
+    output: Path | None = typer.Option(None, "-o", help="Write RunReport JSON"),
 ) -> None:
     """Run the full 9-step SendSprint flow."""
     ws = load_workspace(workspace_file) if workspace_file else None
@@ -165,6 +166,203 @@ def run_flow(
         console.print(f"[yellow]note:[/yellow] {note}")
     if output:
         data = result.run_report.model_dump_json(indent=2) if result.run_report else result.model_dump_json(indent=2)
+        output.write_text(data)
+        console.print(f"[green]wrote report to {output}[/green]")
+
+
+@app.command()
+def init(
+    repo_path: Path = typer.Argument(Path("."), help="Repo to scan and scaffold .specs/ for"),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing spec files"),
+) -> None:
+    """Auto-discover repo + LLM-fill .specs/{product,architecture}/*.md baselines."""
+    repo = repo_path.expanduser().resolve()
+    console.print(f"[bold]scaffolding[/bold] {repo}")
+    scaffolder = Scaffolder(repo)
+    signals = scaffolder.discover()
+    langs = ", ".join(signals.primary_languages) or "unknown"
+    console.print(f"  files={signals.file_count} languages={langs}")
+    console.print(f"  manifests={list(signals.manifests)} docs={list(signals.docs)}")
+    outputs = scaffolder.generate(signals)
+    result = scaffolder.write(outputs, force=force)
+    for p in result.created:
+        console.print(f"[green]created[/green] {p.relative_to(repo)}")
+    for p in result.skipped:
+        console.print(f"[yellow]skipped[/yellow] {p.relative_to(repo)} (exists, use --force)")
+
+
+@app.command()
+def login(
+    provider: str = typer.Argument(..., help="jira | azuredevops"),
+) -> None:
+    """Prompt and persist credentials for a provider in the OS keyring."""
+    if provider == "jira":
+        base_url = typer.prompt("jira base url (https://your-org.atlassian.net)")
+        account, _ = credentials.get_or_prompt(
+            "jira",
+            "JIRA_EMAIL",
+            "JIRA_API_TOKEN",
+            account_label="email",
+            secret_label="API token",
+        )
+        profile_mod.update(
+            **{
+                "default_provider": "jira",
+                "jira.base_url": base_url,
+                "jira.email": account,
+            }
+        )
+        console.print(f"[green]logged in to jira as {account}[/green]")
+    elif provider == "azuredevops":
+        organization = typer.prompt("azure devops organization")
+        project = typer.prompt("azure devops project")
+        account, _ = credentials.get_or_prompt(
+            "azuredevops",
+            "AZURE_DEVOPS_ORG",
+            "AZURE_DEVOPS_PAT",
+            account_label="organization",
+            secret_label="PAT",
+        )
+        profile_mod.update(
+            **{
+                "default_provider": "azuredevops",
+                "azuredevops.organization": organization,
+                "azuredevops.project": project,
+            }
+        )
+        console.print(
+            f"[green]logged in to azuredevops org={organization} project={project}[/green]"
+        )
+    else:
+        raise typer.BadParameter("provider must be 'jira' or 'azuredevops'")
+
+
+@app.command()
+def logout(
+    provider: str = typer.Argument(..., help="jira | azuredevops"),
+    account: str | None = typer.Argument(
+        None, help="account/email to forget (default: from profile)"
+    ),
+) -> None:
+    """Remove stored credentials for a provider."""
+    p = profile_mod.load()
+    if not account:
+        if provider == "jira":
+            account = p.jira.email
+        elif provider == "azuredevops":
+            account = p.azuredevops.organization
+    if not account:
+        raise typer.BadParameter("no account known; pass it explicitly")
+    credentials.delete_secret(provider, account)
+    console.print(f"[green]forgot {provider} credentials for {account}[/green]")
+
+
+@app.command()
+def sprint(
+    provider: str | None = typer.Option(
+        None, "--provider", help="jira | azuredevops (defaults to profile)"
+    ),
+    identifier: str | None = typer.Option(
+        None, "--id", help="sprint id or iteration path (defaults to profile)"
+    ),
+    repo_path: Path | None = typer.Option(
+        None, "--repo", "-r", help="defaults to profile or cwd"
+    ),
+    workspace_file: Path | None = typer.Option(None, "--workspace", "-w"),
+    scope_mode: str | None = typer.Option(None, "--scope", help="all | mine"),
+    output: Path | None = typer.Option(None, "-o"),
+) -> None:
+    """One-shot — runs the full 10-step flow with credentials and defaults from profile.
+
+    Equivalent to: ``run <provider> <id> --scope mine``. Prompts for missing pieces once.
+    """
+    p = profile_mod.load()
+    provider = provider or p.default_provider
+    if not provider:
+        provider = typer.prompt("provider", default="jira")
+
+    scope_mode = scope_mode or p.default_scope or "mine"
+    repo = repo_path or (Path(p.default_repo_path) if p.default_repo_path else Path.cwd())
+    ws_path = workspace_file or (Path(p.default_workspace) if p.default_workspace else None)
+    ws = load_workspace(ws_path) if ws_path else None
+
+    if provider == "jira":
+        email, token = credentials.get_or_prompt(
+            "jira",
+            "JIRA_EMAIL",
+            "JIRA_API_TOKEN",
+            account_label="email",
+            secret_label="API token",
+        )
+        operator = JiraOperator(
+            base_url=p.jira.base_url, email=email, api_token=token, transport="auto"
+        )
+        if not identifier:
+            if p.jira.default_sprint_id:
+                identifier = str(p.jira.default_sprint_id)
+            else:
+                identifier = typer.prompt("jira sprint id")
+        user_info = operator.current_user()
+        scope = build_scope(
+            mode=scope_mode,
+            user_email=user_info.get("emailAddress"),
+            user_account_id=user_info.get("accountId"),
+        )
+        sprint_id: int | None = int(identifier)
+        iteration_path: str | None = None
+    elif provider == "azuredevops":
+        organization, pat = credentials.get_or_prompt(
+            "azuredevops",
+            "AZURE_DEVOPS_ORG",
+            "AZURE_DEVOPS_PAT",
+            account_label="organization",
+            secret_label="PAT",
+        )
+        operator = AzureDevopsOperator(
+            organization=p.azuredevops.organization or organization,
+            project=p.azuredevops.project,
+            pat=pat,
+            transport="auto",
+        )
+        if not identifier:
+            if p.azuredevops.default_iteration:
+                identifier = p.azuredevops.default_iteration
+            else:
+                identifier = typer.prompt("ado iteration path (e.g. MyTeam\\Sprint 12)")
+        user_info = operator.current_user()
+        scope = build_scope(
+            mode=scope_mode,
+            user_email=user_info.get("emailAddress"),
+            user_descriptor=user_info.get("descriptor"),
+            user_display_name=user_info.get("displayName"),
+        )
+        sprint_id = None
+        iteration_path = identifier
+    else:
+        raise typer.BadParameter("provider must be 'jira' or 'azuredevops'")
+
+    flow = SprintFlow(operator=operator, workspace=ws, scope=scope)
+    result = flow.run(
+        sprint_id=sprint_id,
+        iteration_path=iteration_path,
+        repo_path=str(repo) if repo else None,
+    )
+
+    _render_sprint(result.sprint)
+    if result.architecture:
+        console.rule("Architecture")
+        console.print_json(data=json.loads(result.architecture.model_dump_json()))
+    if result.run_report:
+        console.rule("Run Report")
+        _render_run_report(result.run_report)
+    for note in result.notes:
+        console.print(f"[yellow]note:[/yellow] {note}")
+    if output:
+        data = (
+            result.run_report.model_dump_json(indent=2)
+            if result.run_report
+            else result.model_dump_json(indent=2)
+        )
         output.write_text(data)
         console.print(f"[green]wrote report to {output}[/green]")
 

@@ -47,9 +47,28 @@ class JiraOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(transport=transport, **kwargs)
-        self.base_url = (base_url or os.getenv("JIRA_BASE_URL", "")).rstrip("/")
-        self.email = email or os.getenv("JIRA_EMAIL", "")
-        self.api_token = api_token or os.getenv("JIRA_API_TOKEN", "")
+        resolved_base = (base_url or os.getenv("JIRA_BASE_URL", "")).rstrip("/")
+        resolved_email = email or os.getenv("JIRA_EMAIL", "")
+        resolved_token = api_token or os.getenv("JIRA_API_TOKEN", "")
+        if not resolved_base or not resolved_email:
+            try:
+                from sendsprint import profile as _profile_mod
+
+                _p = _profile_mod.load()
+                resolved_base = resolved_base or (_p.jira.base_url or "").rstrip("/")
+                resolved_email = resolved_email or (_p.jira.email or "")
+            except Exception:  # pragma: no cover — defensive: no profile, no yaml
+                pass
+        if not resolved_token and resolved_email:
+            try:
+                from sendsprint import credentials as _credentials
+
+                resolved_token = _credentials.get_secret("jira", resolved_email) or ""
+            except Exception:  # pragma: no cover — keyring unavailable
+                pass
+        self.base_url = resolved_base
+        self.email = resolved_email
+        self.api_token = resolved_token
         self.cdp_url = cdp_url or os.getenv("PLAYWRIGHT_CDP_URL", "http://127.0.0.1:9222")
 
     def _api_available(self) -> bool:

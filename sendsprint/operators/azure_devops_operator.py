@@ -45,10 +45,30 @@ class AzureDevopsOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(transport=transport, **kwargs)
-        self.organization = organization or os.getenv("AZURE_DEVOPS_ORG", "")
-        self.project = project or os.getenv("AZURE_DEVOPS_PROJECT", "")
-        self.team = team or os.getenv("AZURE_DEVOPS_TEAM", "")
-        self.pat = pat or os.getenv("AZURE_DEVOPS_PAT", "")
+        resolved_org = organization or os.getenv("AZURE_DEVOPS_ORG", "")
+        resolved_project = project or os.getenv("AZURE_DEVOPS_PROJECT", "")
+        resolved_team = team or os.getenv("AZURE_DEVOPS_TEAM", "")
+        resolved_pat = pat or os.getenv("AZURE_DEVOPS_PAT", "")
+        if not resolved_org or not resolved_project:
+            try:
+                from sendsprint import profile as _profile_mod
+
+                _p = _profile_mod.load()
+                resolved_org = resolved_org or (_p.azuredevops.organization or "")
+                resolved_project = resolved_project or (_p.azuredevops.project or "")
+            except Exception:  # pragma: no cover — defensive: no profile, no yaml
+                pass
+        if not resolved_pat and resolved_org:
+            try:
+                from sendsprint import credentials as _credentials
+
+                resolved_pat = _credentials.get_secret("azuredevops", resolved_org) or ""
+            except Exception:  # pragma: no cover — keyring unavailable
+                pass
+        self.organization = resolved_org
+        self.project = resolved_project
+        self.team = resolved_team
+        self.pat = resolved_pat
         self.cdp_url = cdp_url or os.getenv("PLAYWRIGHT_CDP_URL", "http://127.0.0.1:9222")
 
     def _api_available(self) -> bool:

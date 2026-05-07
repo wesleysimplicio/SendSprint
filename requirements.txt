@@ -5,6 +5,8 @@ typer>=0.12.0
 rich>=13.7.0
 python-dotenv>=1.0.1
 anyio>=4.4.0
+pyyaml>=6.0.1
+keyring>=25.0.0
 
 # Optional LLM providers — install only the one you use
 # anthropic>=0.39.0

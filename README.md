@@ -2,9 +2,9 @@
 
 Multi-agent skill that automates end-to-end sprint delivery. Reads Jira / Azure DevOps sprints, maps architecture, installs + builds, runs tests, scans for security issues, creates PRs, reviews diffs, and delivers — all in a single 9-step flow.
 
-Works across Claude, Codex, Hermes Agent, Openclaw, and GitHub Copilot.
+Works across **13 AI coding tools**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
-> **Status:** v0.2.2 — Full 10-step flow. Multi-repo workspaces, `--scope mine` filtering, tech detection for 25+ stacks, 103 tests.
+> **Status:** v0.4.0 — Chat-triggered one-command UX (`sendsprint sprint`). 13 IDE manifests. OS-keyring credential cache. Auto-scaffold `.specs/` on first run. Full 10-step flow. Multi-repo workspaces, `--scope mine` filtering, tech detection for 25+ stacks, 103 tests.
 
 ---
 

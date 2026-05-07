@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-05-07
+
+### Added
+
+- `sendsprint/credentials.py` — OS keyring wrapper (Keychain on macOS, Secret Service on Linux, Credential Manager on Windows). One-time prompt then persistent.
+- `sendsprint/profile.py` — non-secret prefs at `~/.config/sendsprint/profile.yaml` (chmod 600). Stores org/project/default sprint/scope, jira.base_url + jira.email, azuredevops.organization + project + team. Pydantic v2 model with dotted-key updates.
+- `sendsprint/scaffolder.py` — auto-discovery on first run: scans repo with `tech_detector`, LLM-fills `.specs/product/{VISION,DOMAIN}.md` and `.specs/architecture/{DESIGN,PATTERNS}.md` (each marked `> auto-generated, review me`).
+- CLI commands: `init` (scaffolder), `login <provider>` (prompts + persists creds), `logout <provider>` (deletes keyring entry), `sprint` (zero-arg chat-trigger entrypoint that loads profile + keyring + runs full 10-step flow with `--scope mine` default).
+- IDE manifests for **8 additional editors** so the chat-trigger UX works across the market: `skills/cursor/sendsprint.mdc`, `skills/windsurf/sendsprint.md`, `skills/kiro/sendsprint.md`, `skills/zed/sendsprint.md`, `skills/cline/.clinerules`, `skills/continue/config.json`, `skills/aider/CONVENTIONS.md`, `skills/cody/sendsprint.md`. All recognise the same trigger phrases (pt-BR / en / es / `/sendsprint`).
+- Trigger phrases (any IDE): `rode o sendsprint`, `executar sprint`, `Faça todas as minhas tarefas da sprint`, `entregar sprint`, `run sendsprint`, `ship my sprint`, `deliver my sprint`, `process my Jira sprint`, `process my ADO sprint`, `ejecutar sprint`, `procesar sprint`, `/sendsprint`.
+
+### Changed
+
+- `JiraOperator.__init__` and `AzureDevopsOperator.__init__` now resolve credentials in this order: constructor arg → env var → profile YAML → OS keyring. Lazy imports keep `keyring`/`yaml` optional at import time.
+- AGENTS.md §3/§4/§10 updated with new modules, chat-trigger UX section, and IDE manifest map.
+
+### Dependencies
+
+- `keyring>=25.0.0` added to `pyproject.toml` and `requirements.txt` (was implicit before).
+
 ## [0.3.0] - 2026-05-07
 
 ### Added
