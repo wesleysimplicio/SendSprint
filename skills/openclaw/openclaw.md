@@ -1,8 +1,6 @@
-# SendSprint - Openclaw Skill
+# SendSprint v0.2 - Openclaw Skill
 
-Skill manifest for the Openclaw agent runtime. Drop the `sendsprint`
-package into the runtime's Python path and Openclaw will surface it on
-prompts that match the trigger list below.
+Skill manifest for the Openclaw agent runtime.
 
 ## Trigger
 
@@ -10,29 +8,26 @@ prompts that match the trigger list below.
 - en: "send sprint", "sprint flow", "deliver sprint", "read sprint"
 - es: "ejecutar sprint", "leer sprint"
 
-## Steps
+## 9-Step Flow
 
-1. **Read sprint** - pick the operator from the source the user names.
-   - Jira -> `sendsprint.operators.JiraOperator(transport="auto").read_sprint(sprint_id=...)`
-   - Azure DevOps -> `sendsprint.operators.AzureDevopsOperator(transport="auto").read_sprint(iteration_path=...)`
-   - Transport priority: `mcp` -> `api` -> `playwright` (CDP at `PLAYWRIGHT_CDP_URL`).
-   - Capture every Story, Task, Subtask, Bug, Epic, Feature, Issue with full
-     metadata (key, type, title, description, status, assignee, story points,
-     parent, labels, comments, links, attachments, acceptance criteria, URL).
-
-2. **Architecture mapping** - per repo touched by the sprint:
-   - `sendsprint.architecture.ArchitectureMapper().inspect(repo_path)`
-   - Fail when `score < 0.6` and surface the missing artifacts list:
-     `ARCHITECTURE.md`, `docs/architecture/`, `docs/c4/`, `docs/adr/`,
-     dependency graph, deploy topology, README.
+1. **Read sprint** — `JiraOperator` or `AzureDevopsOperator` (mcp->api->playwright).
+   Supports `--scope mine` for current-user filtering.
+2. **Architecture mapping** — inspect + auto-build baseline docs if score < 0.6.
+3. **Dev** — `DevAgent` with tech detection, worktree isolation, install + build.
+4. **Tests** — `TestRunner` unit + Playwright E2E, screenshot evidence (pass + fail).
+5. **Security review** — `SecurityReviewer` flag-only (secrets, env, npm audit).
+6. **Fix loop** — re-build + re-test up to 3 rounds.
+7. **Create PR** — `PrCreator` GitHub (gh CLI) or Azure DevOps REST.
+8. **PR review** — `PrReviewer` diff analysis.
+9. **Delivered** — RunReport with all steps, evidence, findings.
 
 ## CLI
 
 ```bash
-sendsprint read-jira 1234
-sendsprint read-ado "Team\\Sprint 12"
-sendsprint check-architecture ./path/to/repo
-sendsprint run jira 1234 --repo-path ./path/to/repo
+sendsprint run jira 1234 --workspace workspace.yaml --scope mine -o report.json
+sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+sendsprint detect-tech ./repo
+sendsprint check-architecture ./repo --build
 ```
 
 ## Required env

@@ -1,0 +1,40 @@
+# SendSprint workspace configuration example
+# Place at your workspace root and pass via: sendsprint run jira 42 --workspace workspace.yaml
+
+name: my-workspace
+root_path: .
+
+repos:
+  - name: backend-api
+    path: backend
+    role: api
+    tech: dotnet
+    default_branch: main
+    pr_target_branch: develop
+    test_command: "dotnet test"
+    build_command: "dotnet build"
+
+  - name: frontend-web
+    path: frontend
+    role: front
+    tech: angular
+    default_branch: main
+    pr_target_branch: develop
+    test_command: "npm test -- --run"
+    build_command: "npx ng build"
+    e2e_command: "npx playwright test"
+
+  - name: mobile-app
+    path: mobile
+    role: mobile
+    tech: flutter
+    default_branch: main
+    test_command: "flutter test"
+    build_command: "flutter build apk"
+
+new_projects_dir: Projetos/novos
+pr_provider: github            # github | azuredevops
+pr_reviewers:
+  - lead-dev
+  - tech-reviewer
+default_base_branch: main

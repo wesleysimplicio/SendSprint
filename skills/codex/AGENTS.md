@@ -1,4 +1,4 @@
-# SendSprint - Codex Agent
+# SendSprint v0.2 - Codex Agent
 
 Auto-loaded by Codex CLI when present in repo. Activates on prompts mentioning
 "sprint flow", "ler sprint", "rodar sprint", "send sprint", "executar sprint",
@@ -6,47 +6,51 @@ Auto-loaded by Codex CLI when present in repo. Activates on prompts mentioning
 
 ## Mission
 
-End-to-end sprint delivery in two steps.
+End-to-end sprint delivery in 9 steps.
 
-### Step 1 - Read sprint
+### Step 1 — Read sprint
+Pick the operator: `JiraOperator(sprint_id)` or `AzureDevopsOperator(iteration_path)`.
+Transport: `mcp` -> `api` -> `playwright`. Supports `--scope mine`.
 
-Pick the operator from the source the user names:
+### Step 2 — Architecture mapping
+`ArchitectureMapper.inspect()` + `build_architecture()` if score < 0.6.
 
-- **Jira** -> `JiraOperator(transport="auto")`. Required: sprint id.
-- **Azure DevOps** -> `AzureDevopsOperator(transport="auto")`. Required: iteration path
-  (e.g. `MyTeam\Sprint 12`).
+### Step 3 — Dev (install + build)
+`DevAgent` per repo with tech detection and worktree isolation.
 
-Transport priority: `mcp` -> `api` -> `playwright`. Use `auto` unless overridden.
+### Step 4 — Tests
+`TestRunner.run_all()` — unit + Playwright E2E with screenshot evidence.
 
-Extract for every Story, Task, Subtask, Bug, Epic, Feature and Issue:
-key, type, title, description, status, assignee, story points, parent key,
-labels, comments, links, attachments, acceptance criteria, source URL.
+### Step 5 — Security review
+`SecurityReviewer.scan()` — flag-only (secrets, env, npm audit).
 
-### Step 2 - Architecture mapping
+### Step 6 — Fix loop
+Re-build + re-test up to 3 rounds on failure.
 
-Run `ArchitectureMapper().inspect(repo_path)` for every repo touched by the sprint.
-Fail with a clear message when `score < 0.6` and list the missing artifacts:
-`ARCHITECTURE.md`, `docs/architecture/`, `docs/c4/`, `docs/adr/`, dependency graph,
-deploy topology, README.
+### Step 7 — Create PR
+`PrCreator` via GitHub (gh CLI) or Azure DevOps REST.
+
+### Step 8 — PR review
+`PrReviewer` diff analysis (TODO, debug, long lines).
+
+### Step 9 — Delivered
 
 ## CLI
 
 ```bash
-sendsprint read-jira 1234
-sendsprint read-ado "Team\\Sprint 12"
-sendsprint check-architecture ./path/to/repo
-sendsprint run jira 1234 --repo-path ./path/to/repo
+sendsprint run jira 1234 --workspace workspace.yaml --scope mine -o report.json
+sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+sendsprint detect-tech ./repo
+sendsprint check-architecture ./repo --build
 ```
 
 ## Python
 
 ```python
-from sendsprint.operators import AzureDevopsOperator, JiraOperator
 from sendsprint.flow import SprintFlow
+from sendsprint.operators import JiraOperator
 
-result = SprintFlow(operator=JiraOperator()).run(
-    sprint_id=1234, repo_path="./repo"
-)
+result = SprintFlow(operator=JiraOperator()).run(sprint_id=1234)
 ```
 
 ## Env
@@ -55,9 +59,3 @@ result = SprintFlow(operator=JiraOperator()).run(
 `AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PAT`,
 `PLAYWRIGHT_CDP_URL` (default `http://127.0.0.1:9222`),
 `LLM_PROVIDER`, `LLM_MODEL`, plus the matching provider key.
-
-## Playwright fallback
-
-User must have Chrome running with `--remote-debugging-port=9222` (or set
-`PLAYWRIGHT_CDP_URL`). The operator connects via CDP, navigates the project,
-opens each issue, and scrapes title + status + assignee.

@@ -54,6 +54,36 @@ class AzureDevopsOperator(BaseOperator):
     def _api_available(self) -> bool:
         return bool(self.organization and self.project and self.pat)
 
+    def current_user(self) -> dict[str, str | None]:
+        """Resolve current ADO user via /_apis/connectionData.
+
+        Returns ``{descriptor, emailAddress, displayName}`` (any may be None).
+        """
+        fallback: dict[str, str | None] = {
+            "descriptor": None,
+            "emailAddress": None,
+            "displayName": None,
+        }
+        if not self._api_available():
+            return fallback
+        token = base64.b64encode(f":{self.pat}".encode()).decode()
+        headers = {"Authorization": f"Basic {token}"}
+        try:
+            with httpx.Client(timeout=15.0, headers=headers) as client:
+                resp = client.get(
+                    f"https://dev.azure.com/{self.organization}/_apis/connectionData"
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except (httpx.HTTPError, ValueError):
+            return fallback
+        auth_user = data.get("authenticatedUser") or {}
+        return {
+            "descriptor": auth_user.get("descriptor"),
+            "emailAddress": (auth_user.get("properties") or {}).get("Account", {}).get("$value"),
+            "displayName": auth_user.get("providerDisplayName"),
+        }
+
     def _read_via_mcp(self, iteration_path: str, **_: Any) -> Sprint:
         try:
             from sendsprint.operators import _mcp_bridge
@@ -156,11 +186,14 @@ class AzureDevopsOperator(BaseOperator):
         wi_type = fields.get("System.WorkItemType", "Issue").lower()
         item_type = ADO_TYPE_MAP.get(wi_type, "Issue")
         assigned_raw = fields.get("System.AssignedTo")
-        assignee = (
-            assigned_raw.get("displayName")
-            if isinstance(assigned_raw, dict)
-            else assigned_raw
-        )
+        if isinstance(assigned_raw, dict):
+            assignee = assigned_raw.get("displayName")
+            assignee_email = assigned_raw.get("uniqueName")
+            assignee_descriptor = assigned_raw.get("descriptor")
+        else:
+            assignee = assigned_raw
+            assignee_email = None
+            assignee_descriptor = None
         return SprintItem(
             id=str(wi.get("id", "")),
             key=str(wi.get("id", "")),
@@ -169,6 +202,8 @@ class AzureDevopsOperator(BaseOperator):
             description=_strip_html(fields.get("System.Description")),
             status=fields.get("System.State", "unknown"),
             assignee=assignee,
+            assignee_email=assignee_email,
+            assignee_descriptor=assignee_descriptor,
             story_points=fields.get("Microsoft.VSTS.Scheduling.StoryPoints"),
             parent_key=str(fields.get("System.Parent")) if fields.get("System.Parent") else None,
             labels=(fields.get("System.Tags", "") or "").split("; ") if fields.get("System.Tags") else [],

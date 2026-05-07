@@ -55,6 +55,32 @@ class JiraOperator(BaseOperator):
     def _api_available(self) -> bool:
         return bool(self.base_url and self.email and self.api_token)
 
+    def current_user(self) -> dict[str, str | None]:
+        """Resolve the current Jira user via /rest/api/3/myself.
+
+        Returns ``{accountId, emailAddress, displayName}`` (any may be None).
+        Falls back to env defaults when the API is unreachable.
+        """
+        fallback = {
+            "accountId": None,
+            "emailAddress": self.email or None,
+            "displayName": None,
+        }
+        if not self._api_available():
+            return fallback
+        try:
+            with httpx.Client(timeout=15.0, auth=(self.email, self.api_token)) as client:
+                resp = client.get(f"{self.base_url}/rest/api/3/myself")
+                resp.raise_for_status()
+                data = resp.json()
+        except (httpx.HTTPError, ValueError):
+            return fallback
+        return {
+            "accountId": data.get("accountId"),
+            "emailAddress": data.get("emailAddress") or self.email or None,
+            "displayName": data.get("displayName"),
+        }
+
     def _read_via_mcp(self, sprint_id: str | int, **_: Any) -> Sprint:
         try:
             from sendsprint.operators import _mcp_bridge
@@ -158,7 +184,10 @@ class JiraOperator(BaseOperator):
         fields = issue.get("fields", {})
         issue_type_raw = (fields.get("issuetype") or {}).get("name", "Issue").lower()
         item_type = JIRA_TYPE_MAP.get(issue_type_raw, "Issue")
-        assignee = (fields.get("assignee") or {}).get("displayName")
+        assignee_obj = fields.get("assignee") or {}
+        assignee = assignee_obj.get("displayName")
+        assignee_email = assignee_obj.get("emailAddress")
+        assignee_account_id = assignee_obj.get("accountId")
         parent = (fields.get("parent") or {}).get("key")
         story_points = fields.get("customfield_10016") or fields.get("customfield_10026")
         labels = fields.get("labels") or []
@@ -185,6 +214,8 @@ class JiraOperator(BaseOperator):
             description=_extract_text(fields.get("description")),
             status=(fields.get("status") or {}).get("name", "unknown"),
             assignee=assignee,
+            assignee_email=assignee_email,
+            assignee_account_id=assignee_account_id,
             story_points=float(story_points) if story_points is not None else None,
             parent_key=parent,
             labels=list(labels),

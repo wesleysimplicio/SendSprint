@@ -1,26 +1,28 @@
 # SendSprint
 
-Multi-agent skill that automates sprint delivery. Reads Jira / Azure DevOps boards, verifies project architecture mapping, plans work, and drives implementation across Claude, Codex, Hermes Agent, Openclaw, and GitHub Copilot.
+Multi-agent skill that automates end-to-end sprint delivery. Reads Jira / Azure DevOps sprints, maps architecture, installs + builds, runs tests, scans for security issues, creates PRs, reviews diffs, and delivers — all in a single 9-step flow.
 
-> **Status:** v0.1.0 — Step 1 (sprint reading) and Step 2 (architecture mapping check) implemented. Steps 3–N (planning, code generation, PR, deploy) on roadmap.
+Works across Claude, Codex, Hermes Agent, Openclaw, and GitHub Copilot.
+
+> **Status:** v0.2.0 — Full 9-step flow implemented. Multi-repo workspaces, `--scope mine` filtering, tech detection for 25+ stacks.
 
 ---
 
-## What it does
+## 9-Step Flow
 
-Given a sprint ID (Jira) or iteration path (Azure DevOps), SendSprint:
+| Step | Name | What it does |
+|------|------|-------------|
+| 1 | **Read sprint** | Fetch stories/tasks/bugs from Jira or Azure DevOps |
+| 2 | **Architecture mapping** | Inspect repo docs; auto-generate baseline if score < 0.6 |
+| 3 | **Dev** | Detect tech stack, create worktree, install deps + build |
+| 4 | **Tests** | Unit tests + Playwright E2E with screenshot evidence |
+| 5 | **Security review** | Flag-only scan (secrets, env files, npm audit) |
+| 6 | **Fix loop** | If tests/security fail: re-build + re-test (max 3 rounds) |
+| 7 | **Create PR** | GitHub (gh CLI) or Azure DevOps REST API |
+| 8 | **PR review** | Diff analysis (TODO markers, debug statements, long lines) |
+| 9 | **Delivered** | RunReport with all steps, evidence, and findings |
 
-1. **Reads the entire sprint** — Stories, Tasks, Subtasks, Issues, Features, Bugs, Epics, links, attachments, comments, status, assignees, story points, acceptance criteria.
-2. **Verifies architecture mapping** of every referenced project (presence of `ARCHITECTURE.md`, `docs/architecture/*`, `C4`, ADRs, dependency graph, deploy topology).
-3. Hands an enriched, structured plan to the active agent (Claude / Codex / Hermes / Openclaw / Copilot) for execution.
-
-Reading layer supports three transports, in order of preference:
-
-| Transport      | When                                                        |
-| -------------- | ----------------------------------------------------------- |
-| **MCP**        | If Atlassian / Azure DevOps MCP server is connected         |
-| **REST API**   | If `JIRA_API_TOKEN` / `AZURE_DEVOPS_PAT` env vars are set   |
-| **Playwright** | Fallback. Drives an already-open browser tab with a session |
+Transport priority: `mcp` -> `api` -> `playwright`.
 
 ---
 
@@ -28,8 +30,7 @@ Reading layer supports three transports, in order of preference:
 
 - Python `>=3.11`
 - Playwright (`playwright install chromium`)
-- One LLM provider: Anthropic (Claude), OpenAI (Codex / GPT), Google (Gemini), Groq, or local (Ollama)
-- Optional: Atlassian / Azure DevOps MCP server, or Jira API token / Azure DevOps PAT
+- Optional: Jira API token / Azure DevOps PAT, or Atlassian / Azure DevOps MCP server
 
 ---
 
@@ -47,46 +48,76 @@ cp .env.example .env  # fill in credentials
 
 ## Quick start
 
-### Read a Jira sprint
+### CLI
+
+```bash
+# Full 9-step flow against a Jira sprint
+sendsprint run jira 42 --workspace workspace.yaml --scope mine -o report.json
+
+# Full flow against Azure DevOps
+sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+
+# Detect tech stack
+sendsprint detect-tech ./repo
+
+# Check architecture mapping (with auto-build if missing)
+sendsprint check-architecture ./repo --build
+```
+
+### Python
 
 ```python
-from sendsprint.operators.jira_operator import JiraOperator
+from sendsprint.flow import SprintFlow
+from sendsprint.operators import JiraOperator
+from sendsprint.workspace import load_workspace
+from sendsprint.scope import build_scope
+
+ws = load_workspace("workspace.yaml")
+scope = build_scope(mode="mine", user_email="dev@example.com")
+flow = SprintFlow(operator=JiraOperator(), workspace=ws, scope=scope)
+result = flow.run(sprint_id=42)
+print(result.run_report.summary)
+```
+
+### Read a sprint only
+
+```python
+from sendsprint.operators import JiraOperator
 
 op = JiraOperator(
     base_url="https://your-org.atlassian.net",
-    transport="auto",  # mcp | api | playwright | auto
-)
-sprint = op.read_sprint(sprint_id=42)
-print(f"{sprint.name}: {len(sprint.items)} items")
-for item in sprint.items:
-    print(f"  [{item.type}] {item.key} — {item.title} ({item.status})")
-```
-
-### Read an Azure DevOps iteration
-
-```python
-from sendsprint.operators.azure_devops_operator import AzureDevopsOperator
-
-op = AzureDevopsOperator(
-    organization="your-org",
-    project="YourProject",
     transport="auto",
 )
-sprint = op.read_sprint(iteration_path="YourProject\\Sprint 42")
+sprint = op.read_sprint(sprint_id=42)
+for item in sprint.items:
+    print(f"  [{item.type}] {item.key} - {item.title} ({item.status})")
 ```
 
-### Full flow (read + architecture check)
+---
 
-```bash
-sendsprint run --provider jira --sprint 42 --repos ./repos/*
-```
+## Multi-repo workspace
 
-### CLI
+Define repos in `workspace.yaml`:
 
-```
-sendsprint read   --provider {jira|azuredevops} --sprint <id|path>
-sendsprint check  --repos <glob>
-sendsprint run    --provider <p> --sprint <id> --repos <glob>
+```yaml
+name: my-project
+root_path: /home/dev/repos
+new_projects_dir: Projetos/novos
+pr_provider: github
+repos:
+  - name: backend-api
+    path: backend-api
+    role: api
+    tech: dotnet
+    default_branch: main
+  - name: frontend-web
+    path: frontend-web
+    role: front
+    tech: angular
+  - name: mobile-app
+    path: mobile-app
+    role: mobile
+    tech: flutter
 ```
 
 ---
@@ -96,40 +127,92 @@ sendsprint run    --provider <p> --sprint <id> --repos <glob>
 ```
 sendsprint/
 ├── operators/         JiraOperator, AzureDevopsOperator (mcp|api|playwright)
+├── models/            Sprint, SprintItem, StepReport, RunReport (Pydantic v2)
+├── agents/
+│   ├── worktree.py    Git worktree isolation for parallel branches
+│   ├── dev.py         Install + build per tech stack (16 package managers)
+│   ├── test_runner.py Unit + E2E with screenshot evidence
+│   ├── security_reviewer.py  Secret scan, env audit, npm audit
+│   ├── pr_creator.py  GitHub (gh) / Azure DevOps (REST) PR creation
+│   └── pr_reviewer.py Diff static checks (TODO, debug, long lines)
+├── architecture/
+│   ├── mapper.py      Weighted architecture scoring
+│   └── builder.py     Auto-generate baseline docs
+├── tech/
+│   └── detector.py    Filesystem marker detection (25+ techs)
+├── workspace/
+│   └── loader.py      YAML/JSON multi-repo workspace config
+├── scope.py           --scope mine filtering (account_id, email, name)
+├── flow/
+│   └── sprint_flow.py 9-step orchestrator
 ├── llm/               Provider-agnostic LLM client
-├── architecture/      ArchitectureMapper — verifies project docs
-├── models/            Sprint, SprintItem, ArchitectureReport (pydantic)
-├── flow/              SprintFlow — orchestrates Step 1 → 2 → N
 └── cli.py             Typer CLI
 ```
 
 ---
 
+## Environment variables
+
+| Variable | Required for |
+|----------|-------------|
+| `JIRA_BASE_URL` | Jira API |
+| `JIRA_EMAIL` | Jira API |
+| `JIRA_API_TOKEN` | Jira API |
+| `AZURE_DEVOPS_ORG` | Azure DevOps API |
+| `AZURE_DEVOPS_PROJECT` | Azure DevOps API |
+| `AZURE_DEVOPS_PAT` | Azure DevOps API |
+| `PLAYWRIGHT_CDP_URL` | Playwright fallback (default `http://127.0.0.1:9222`) |
+| `LLM_PROVIDER` | LLM step (optional) |
+| `LLM_MODEL` | LLM step (optional) |
+
+---
+
 ## Skills
 
-Per-platform entry points live under `skills/`:
+Per-platform entry points under `skills/`:
 
-- `skills/claude/SKILL.md` — Claude Code skill manifest
-- `skills/codex/AGENTS.md` — Codex / OpenAI agent contract
-- `skills/hermes/hermes.md` — Hermes Agent definition
-- `skills/openclaw/openclaw.md` — Openclaw persona
-- `skills/copilot/copilot-instructions.md` — GitHub Copilot Chat instructions
+| File | Platform |
+|------|---------|
+| `skills/claude/SKILL.md` | Claude Code |
+| `skills/codex/AGENTS.md` | Codex / OpenAI |
+| `skills/hermes/hermes.md` | Hermes Agent |
+| `skills/openclaw/openclaw.md` | Openclaw |
+| `skills/copilot/copilot-instructions.md` | GitHub Copilot |
 
-Each one references the same Python core; the skill file just teaches the host agent how to invoke it.
+Each references the same Python core; the skill file teaches the host agent how to invoke it.
+
+---
+
+## Tests
+
+```bash
+pip install -e ".[dev]"
+pytest tests/ -v
+```
+
+94 tests covering operators, architecture mapper/builder, tech detector, scope filtering, workspace loading, and all agents.
 
 ---
 
 ## Roadmap
 
-- [x] Step 1 — Sprint reading (Jira + Azure DevOps, MCP / API / Playwright)
-- [x] Step 2 — Architecture mapping verification
-- [ ] Step 3 — Per-item plan generation via LLM
-- [ ] Step 4 — Branch / commit / PR automation
-- [ ] Step 5 — Test execution + green-gate before PR
-- [ ] Step 6 — Deploy trigger + status callback to ticket
+- [x] Step 1 - Sprint reading (Jira + Azure DevOps, MCP / API / Playwright)
+- [x] Step 2 - Architecture mapping + auto-build baseline docs
+- [x] Step 3 - Dev agent (tech detection, worktree isolation, install + build)
+- [x] Step 4 - Test runner (unit + Playwright E2E with screenshot evidence)
+- [x] Step 5 - Security reviewer (flag-only: secrets, env, npm audit)
+- [x] Step 6 - Fix loop (re-build + re-test, max 3 rounds)
+- [x] Step 7 - PR creation (GitHub gh CLI + Azure DevOps REST)
+- [x] Step 8 - PR review (diff static checks)
+- [x] Step 9 - RunReport with full evidence
+- [x] Multi-repo workspace support (workspace.yaml)
+- [x] `--scope mine` current-user filtering
+- [ ] LLM-powered code generation per sprint item
+- [ ] Deploy trigger + status callback to ticket
+- [ ] MCP server mode (expose SendSprint as an MCP tool)
 
 ---
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT - see [LICENSE](./LICENSE).

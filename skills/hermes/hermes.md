@@ -1,54 +1,47 @@
-# SendSprint - Hermes Agent
+# SendSprint v0.2 - Hermes Agent
 
 Skill manifest consumed by Hermes Agent (https://github.com/hermes-agent).
 
 ## Trigger
 
-Activate when the prompt matches:
-- pt-BR: "ler sprint", "rodar sprint", "executar sprint", "iniciar entrega da sprint", "ler issues da sprint"
+- pt-BR: "ler sprint", "rodar sprint", "executar sprint", "iniciar entrega da sprint"
 - en: "send sprint", "sprint flow", "deliver sprint", "read sprint"
 - es: "ejecutar sprint", "leer sprint"
 
-## Two-step flow
+## 9-Step Flow
 
-### Step 1 - Read sprint
+| Step | Name | Agent/Module |
+|------|------|-------------|
+| 1 | Read sprint | `JiraOperator` / `AzureDevopsOperator` |
+| 2 | Architecture mapping | `ArchitectureMapper` + `build_architecture()` |
+| 3 | Dev (install + build) | `DevAgent` with worktree isolation |
+| 4 | Tests (unit + E2E) | `TestRunner` with screenshot evidence |
+| 5 | Security review | `SecurityReviewer` (flag-only) |
+| 6 | Fix loop | Re-build + re-test (max 3 rounds) |
+| 7 | Create PR | `PrCreator` (GitHub / Azure DevOps) |
+| 8 | PR review | `PrReviewer` (diff analysis) |
+| 9 | Delivered | RunReport with all evidence |
 
-Build the right operator:
+Transport priority: `mcp` -> `api` -> `playwright`.
+Supports `--scope mine` to filter only current user's items.
+Supports `--workspace workspace.yaml` for multi-repo workspaces.
 
-| Source | Class | Required arg |
-|--------|-------|--------------|
-| Jira | `sendsprint.operators.JiraOperator` | `sprint_id: int` |
-| Azure DevOps | `sendsprint.operators.AzureDevopsOperator` | `iteration_path: str` |
-
-Transport priority: `mcp` -> `api` -> `playwright`. Use `transport="auto"`
-unless the user pins one. Playwright requires Chrome running with
-`--remote-debugging-port=9222` (or `PLAYWRIGHT_CDP_URL`).
-
-Extract for every Story, Task, Subtask, Bug, Epic, Feature, Issue:
-key, type, title, description, status, assignee, story points, parent key,
-labels, comments, links, attachments, acceptance criteria, source URL.
-
-### Step 2 - Architecture mapping
-
-Call `ArchitectureMapper().inspect(repo_path)` per repo. Score below `0.6`
-fails the gate; surface the missing artifacts list.
-
-## CLI shortcuts
+## CLI
 
 ```bash
-sendsprint read-jira 1234
-sendsprint read-ado "Team\\Sprint 12"
-sendsprint check-architecture ./path/to/repo
-sendsprint run jira 1234 --repo-path ./path/to/repo
+sendsprint run jira 1234 --workspace workspace.yaml --scope mine
+sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+sendsprint detect-tech ./repo
+sendsprint check-architecture ./repo --build
 ```
 
-## Python entry point
+## Python
 
 ```python
 from sendsprint.flow import SprintFlow
 from sendsprint.operators import JiraOperator
 
-result = SprintFlow(operator=JiraOperator()).run(sprint_id=1234, repo_path="./repo")
+result = SprintFlow(operator=JiraOperator()).run(sprint_id=1234)
 ```
 
 ## Env

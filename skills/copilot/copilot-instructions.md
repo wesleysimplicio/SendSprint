@@ -1,32 +1,32 @@
-# SendSprint - GitHub Copilot Instructions
+# SendSprint v0.2 - GitHub Copilot Instructions
 
 Copy this file to `.github/copilot-instructions.md` at the repo root so
 Copilot Chat injects it as context. Activates when the prompt mentions
 sprint reading or delivery: "ler sprint", "rodar sprint", "send sprint",
-"sprint flow", "executar sprint", "iniciar entrega da sprint",
-"ler issues da sprint" (pt-BR/en/es).
+"sprint flow", "executar sprint" (pt-BR/en/es).
 
 ## What SendSprint does
 
-Two-step automated sprint delivery:
+Full 9-step automated sprint delivery:
 
-1. **Read sprint** from Jira or Azure DevOps using one of three transports
-   (`mcp` -> `api` -> `playwright`). Operators:
-   - `sendsprint.operators.JiraOperator` (sprint id required)
-   - `sendsprint.operators.AzureDevopsOperator` (iteration path required)
-   - Captures every Story, Task, Subtask, Bug, Epic, Feature, Issue with
-     full metadata.
-
-2. **Architecture mapping** via `sendsprint.architecture.ArchitectureMapper`.
-   `score < 0.6` blocks delivery and surfaces missing artifacts.
+1. **Read sprint** from Jira or Azure DevOps (mcp->api->playwright).
+   Supports `--scope mine` for current-user filtering.
+2. **Architecture mapping** — inspect + auto-generate baseline docs if score < 0.6.
+3. **Dev** — tech detection, worktree isolation, install + build.
+4. **Tests** — unit + Playwright E2E with screenshot evidence.
+5. **Security review** — flag-only scan (secrets, env, npm audit).
+6. **Fix loop** — re-build + re-test up to 3 rounds on failure.
+7. **Create PR** — GitHub (gh CLI) or Azure DevOps REST.
+8. **PR review** — diff analysis (TODO, debug statements, long lines).
+9. **Delivered** — RunReport with all evidence.
 
 ## CLI
 
 ```bash
-sendsprint read-jira 1234
-sendsprint read-ado "Team\\Sprint 12"
-sendsprint check-architecture ./path/to/repo
-sendsprint run jira 1234 --repo-path ./path/to/repo
+sendsprint run jira 1234 --workspace workspace.yaml --scope mine -o report.json
+sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+sendsprint detect-tech ./repo
+sendsprint check-architecture ./repo --build
 ```
 
 ## Python
@@ -34,8 +34,12 @@ sendsprint run jira 1234 --repo-path ./path/to/repo
 ```python
 from sendsprint.flow import SprintFlow
 from sendsprint.operators import JiraOperator, AzureDevopsOperator
+from sendsprint.workspace import load_workspace
+from sendsprint.scope import build_scope
 
-result = SprintFlow(operator=JiraOperator()).run(sprint_id=1234, repo_path="./repo")
+ws = load_workspace("workspace.yaml")
+scope = build_scope(mode="mine", user_email="dev@example.com")
+result = SprintFlow(operator=JiraOperator(), workspace=ws, scope=scope).run(sprint_id=1234)
 ```
 
 ## Env
@@ -47,8 +51,7 @@ result = SprintFlow(operator=JiraOperator()).run(sprint_id=1234, repo_path="./re
 
 ## Code style
 
-- Python >= 3.11.
-- Pydantic v2 for models.
+- Python >= 3.11. Pydantic v2 for models.
 - Typer for CLI, Rich for console output.
 - httpx for HTTP, Playwright sync API for CDP.
-- Mirror existing patterns in `sendsprint/operators/`.
+- Mirror existing patterns in `sendsprint/operators/` and `sendsprint/agents/`.

@@ -1,4 +1,4 @@
-"""SprintFlow - orchestrates Step 1 (read sprint) and Step 2 (architecture check)."""
+"""SprintFlow v2: 9-step orchestration across a multi-repo workspace."""
 
 from sendsprint.flow.sprint_flow import SprintFlow, SprintFlowResult
 

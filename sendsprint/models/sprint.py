@@ -37,6 +37,9 @@ class SprintItem(BaseModel):
     description: str | None = None
     status: str
     assignee: str | None = None
+    assignee_email: str | None = None
+    assignee_account_id: str | None = None
+    assignee_descriptor: str | None = None
     story_points: float | None = None
     parent_key: str | None = None
     labels: list[str] = Field(default_factory=list)

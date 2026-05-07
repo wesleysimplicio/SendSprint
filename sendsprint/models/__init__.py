@@ -1,5 +1,15 @@
 """Data models for SendSprint."""
 
+from sendsprint.models.reports import (
+    PrInfo,
+    PrProvider,
+    RunReport,
+    SecurityFinding,
+    Severity,
+    StepReport,
+    StepStatus,
+    TestEvidence,
+)
 from sendsprint.models.sprint import (
     ArchitectureReport,
     Attachment,
@@ -9,6 +19,13 @@ from sendsprint.models.sprint import (
     Sprint,
     SprintItem,
 )
+from sendsprint.models.workspace import (
+    RepoConfig,
+    RepoRole,
+    ScopeConfig,
+    ScopeMode,
+    WorkspaceConfig,
+)
 
 __all__ = [
     "ArchitectureReport",
@@ -16,6 +33,19 @@ __all__ = [
     "Comment",
     "ItemType",
     "Link",
+    "PrInfo",
+    "PrProvider",
+    "RepoConfig",
+    "RepoRole",
+    "RunReport",
+    "ScopeConfig",
+    "ScopeMode",
+    "SecurityFinding",
+    "Severity",
     "Sprint",
     "SprintItem",
+    "StepReport",
+    "StepStatus",
+    "TestEvidence",
+    "WorkspaceConfig",
 ]
