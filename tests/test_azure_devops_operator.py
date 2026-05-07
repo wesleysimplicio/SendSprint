@@ -1,0 +1,107 @@
+"""Unit tests for AzureDevopsOperator (transport selection + workitem parsing)."""
+
+from __future__ import annotations
+
+import pytest
+
+from sendsprint.operators.azure_devops_operator import (
+    ADO_TYPE_MAP,
+    AzureDevopsOperator,
+    _chunked,
+    _parse_dt,
+    _strip_html,
+)
+from sendsprint.operators.base import TransportUnavailable
+
+
+def test_api_unavailable_without_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AZURE_DEVOPS_ORG", raising=False)
+    monkeypatch.delenv("AZURE_DEVOPS_PROJECT", raising=False)
+    monkeypatch.delenv("AZURE_DEVOPS_PAT", raising=False)
+    op = AzureDevopsOperator(transport="api")
+    assert op._api_available() is False
+    with pytest.raises(TransportUnavailable):
+        op._read_via_api(iteration_path="Team\\Sprint 1")
+
+
+def test_api_available_with_credentials() -> None:
+    op = AzureDevopsOperator(
+        organization="myorg",
+        project="myproj",
+        pat="secret",
+        transport="api",
+    )
+    assert op._api_available() is True
+
+
+def test_resolve_transport_auto_picks_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MCP_AZUREDEVOPS_AVAILABLE", raising=False)
+    op = AzureDevopsOperator(
+        organization="myorg",
+        project="myproj",
+        pat="secret",
+        transport="auto",
+    )
+    assert op._resolve_transport() == "api"
+
+
+def test_workitem_to_item_maps_all_fields() -> None:
+    op = AzureDevopsOperator(organization="myorg", project="myproj", pat="t")
+    wi = {
+        "id": 1234,
+        "fields": {
+            "System.Title": "Add OAuth login",
+            "System.WorkItemType": "User Story",
+            "System.State": "Active",
+            "System.AssignedTo": {"displayName": "Bob"},
+            "System.Parent": 100,
+            "System.Tags": "auth; backend",
+            "System.Description": "<p>Implement <b>OAuth</b> login flow</p>",
+            "System.CreatedDate": "2026-05-07T10:00:00Z",
+            "System.ChangedDate": "2026-05-08T11:30:00Z",
+            "Microsoft.VSTS.Scheduling.StoryPoints": 5,
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<div>User logs in via OAuth</div>",
+        },
+    }
+    base = "https://dev.azure.com/myorg/myproj"
+    item = op._workitem_to_item(wi, base)
+    assert item.id == "1234"
+    assert item.key == "1234"
+    assert item.type == "Story"
+    assert item.title == "Add OAuth login"
+    assert item.status == "Active"
+    assert item.assignee == "Bob"
+    assert item.parent_key == "100"
+    assert item.story_points == 5
+    assert item.labels == ["auth", "backend"]
+    assert item.description is not None and "OAuth" in item.description
+    assert item.acceptance_criteria == "User logs in via OAuth"
+    assert item.source_url == "https://dev.azure.com/myorg/myproj/_workitems/edit/1234"
+
+
+def test_ado_type_map_normalises_known_types() -> None:
+    assert ADO_TYPE_MAP["user story"] == "Story"
+    assert ADO_TYPE_MAP["product backlog item"] == "Story"
+    assert ADO_TYPE_MAP["task"] == "Task"
+    assert ADO_TYPE_MAP["bug"] == "Bug"
+    assert ADO_TYPE_MAP.get("unknown", "Issue") == "Issue"
+
+
+def test_strip_html_removes_tags_and_collapses_whitespace() -> None:
+    assert _strip_html("<p>Hello   <b>World</b></p>") == "Hello World"
+    assert _strip_html(None) is None
+    assert _strip_html("") is None
+
+
+def test_parse_dt_handles_z_suffix() -> None:
+    dt = _parse_dt("2026-05-07T10:00:00Z")
+    assert dt is not None
+    assert dt.year == 2026
+    assert _parse_dt(None) is None
+    assert _parse_dt("garbage") is None
+
+
+def test_chunked_splits_list() -> None:
+    assert _chunked([1, 2, 3, 4, 5], 2) == [[1, 2], [3, 4], [5]]
+    assert _chunked([], 3) == []
+    assert _chunked([1], 200) == [[1]]
