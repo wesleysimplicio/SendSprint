@@ -4,6 +4,19 @@
 
 Skill multi-agente que automatiza entrega de sprint ponta-a-ponta. Lê sprints do Jira / Azure DevOps, mapeia arquitetura, instala + builda, roda testes, faz scan de segurança, cria PRs, revisa diff e entrega — tudo num fluxo único de 9 passos.
 
+## 🎬 Vídeo explicativo (56s)
+
+![Prévia do vídeo SendSprint](./video/preview/sendsprint-preview.gif)
+
+<p align="center">
+  <a href="./video/preview/sendsprint-explainer.mp4">▶️ MP4 completo (1920×1080, 56s, 20 MB)</a>
+  &nbsp;·&nbsp;
+  <a href="./video/preview/poster.png">🖼️ Poster</a>
+  &nbsp;·&nbsp;
+  <a href="./video/">🛠️ Código-fonte (Remotion)</a>
+</p>
+
+
 Funciona em **13 ferramentas de IA pra código**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
 > **Status:** v0.4.1 — UX one-command via chat (`sendsprint sprint`). 13 manifestos de IDE. Cache de credencial em OS-keyring. Auto-scaffold `.specs/` na primeira execução. Fluxo completo de 10 passos. Workspaces multi-repo, filtro `--scope mine`, detecção de tech stack pra 25+ stacks, 103 testes.
