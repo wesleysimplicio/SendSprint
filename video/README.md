@@ -7,6 +7,21 @@ spring/fade.
 
 > Stack: Remotion 4 + React 19 + TypeScript. 1920×1080 @ 30fps. Saída MP4 (h264) ou WebM.
 
+## Preview
+
+![SendSprint explainer preview](./preview/sendsprint-preview.gif)
+
+<p align="center">
+  <a href="./preview/sendsprint-explainer.mp4">
+    ▶️ Assistir o MP4 completo (1920×1080, 56s, 20 MB)
+  </a>
+  &nbsp;·&nbsp;
+  <a href="./preview/poster.png">🖼️ Poster PNG</a>
+</p>
+
+> O GIF acima é uma prévia de 16s @ 560p / 10fps (≈3 MB) só para o README. O
+> arquivo `preview/sendsprint-explainer.mp4` é o vídeo final em 1080p @ 30fps.
+
 ## Cenas
 
 | # | Cena | Duração | O que mostra |
