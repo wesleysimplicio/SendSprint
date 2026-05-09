@@ -19,7 +19,7 @@ const STEP_LABELS: Record<number, string> = {
   2: "Mapeia arquitetura",
   3: "Dev: install + build",
   4: "Lint",
-  5: "Testes (unit + E2E)",
+  5: "Testes (unit + E2E + regressão)",
   6: "Segurança",
   7: "Fix loop",
   8: "Commit + push",
@@ -27,7 +27,24 @@ const STEP_LABELS: Record<number, string> = {
   10: "Revisa e entrega",
 };
 
-type StepState = { num: number; status: "pending" | "running" | "ok" | "skipped" | "failed"; message?: string };
+type StepState = {
+  num: number;
+  status: "pending" | "running" | "ok" | "skipped" | "failed";
+  message?: string;
+};
+
+type EvidenceShot = {
+  name: string;
+  iteration: number;
+  label: string;
+  url: string;
+};
+
+type Regression = {
+  iteration: number;
+  status: "ok" | "failed";
+  failingTests: string[];
+};
 
 export const RunScreen: React.FC = () => {
   const nav = useNavigation<Nav>();
@@ -41,7 +58,10 @@ export const RunScreen: React.FC = () => {
     Object.keys(STEP_LABELS).map((k) => ({ num: Number(k), status: "pending" })),
   );
   const [logs, setLogs] = useState<string[]>([]);
-  const [evidence, setEvidence] = useState<string[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceShot[]>([]);
+  const [regressions, setRegressions] = useState<Regression[]>([]);
+  const [iteration, setIteration] = useState(1);
+  const [maxIterations, setMaxIterations] = useState(3);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -58,7 +78,7 @@ export const RunScreen: React.FC = () => {
         });
         setRunId(res.run_id);
         subRef.current = subscribeToRun(api.eventsUrl(res.run_id), {
-          onEvent: handleEvent,
+          onEvent: (ev) => handleEvent(ev, res.run_id),
           onError: (e) => console.warn("sse error", e),
         });
       } catch (e) {
@@ -69,7 +89,7 @@ export const RunScreen: React.FC = () => {
     return () => subRef.current?.close();
   }, []);
 
-  const handleEvent = (ev: RunEvent) => {
+  const handleEvent = (ev: RunEvent, currentRunId: string) => {
     if (ev.type === "step" && ev.step != null) {
       const stepNum = ev.step;
       const status = (ev.status ?? "running") as StepState["status"];
@@ -81,13 +101,37 @@ export const RunScreen: React.FC = () => {
         }),
       );
       if (typeof ev.progress === "number") setProgress(ev.progress);
+    } else if (ev.type === "loop") {
+      if (typeof ev.iteration === "number") setIteration(ev.iteration);
+      if (typeof ev.max_iterations === "number") setMaxIterations(ev.max_iterations);
+      setLogs((l) => [...l, `↻ ${ev.message ?? `round ${ev.iteration}`}`]);
+    } else if (ev.type === "regression") {
+      if (typeof ev.iteration === "number") {
+        setRegressions((r) => [
+          ...r.filter((x) => x.iteration !== ev.iteration),
+          {
+            iteration: ev.iteration!,
+            status: (ev.status === "ok" ? "ok" : "failed") as "ok" | "failed",
+            failingTests: ev.failing_tests ?? [],
+          },
+        ]);
+      }
     } else if (ev.type === "log") {
       setLogs((l) => [...l, ev.message ?? ""]);
     } else if (ev.type === "evidence") {
       const path = ev.evidence_path ?? "";
       const name = path.split("/").pop() ?? path;
-      if (runId) setEvidence((e) => [...e, name]);
-      setLogs((l) => [...l, "📸 evidência: " + name]);
+      const iter = ev.iteration ?? 1;
+      setEvidence((e) => [
+        ...e,
+        {
+          name,
+          iteration: iter,
+          label: ev.evidence_label ?? name,
+          url: api.evidenceUrl(currentRunId, name),
+        },
+      ]);
+      setLogs((l) => [...l, `📸 ${ev.evidence_label ?? name}`]);
     } else if (ev.type === "done") {
       setDone(true);
       setFailed(Boolean(ev.failed));
@@ -105,6 +149,9 @@ export const RunScreen: React.FC = () => {
 
   const goToResult = () => runId && nav.navigate("Result", { runId });
 
+  const evidenceByIteration = groupBy(evidence, (e) => e.iteration);
+  const lastRegression = regressions[regressions.length - 1];
+
   return (
     <Screen
       title="Executando sprint"
@@ -120,8 +167,13 @@ export const RunScreen: React.FC = () => {
         done ? (
           <Button title={failed ? "Ver detalhes da falha" : "Ver resultado"} onPress={goToResult} />
         ) : (
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+          <View>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+            </View>
+            <Text style={styles.iterTag}>
+              ↻ round {iteration} / {maxIterations} · {Math.round(progress * 100)}%
+            </Text>
           </View>
         )
       }
@@ -131,14 +183,73 @@ export const RunScreen: React.FC = () => {
           <StepRow key={s.num} num={s.num} name={STEP_LABELS[s.num]} status={s.status} message={s.message} />
         ))}
 
-        {evidence.length > 0 && runId ? (
+        {regressions.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>REGRESSÃO</Text>
+            <View style={{ paddingHorizontal: 12, gap: 8 }}>
+              {regressions.map((r) => (
+                <View
+                  key={r.iteration}
+                  style={[
+                    styles.regBox,
+                    r.status === "ok" ? styles.regOk : styles.regFail,
+                  ]}
+                >
+                  <View style={styles.regHead}>
+                    <Text
+                      style={[
+                        styles.regBadge,
+                        r.status === "ok" ? styles.regBadgeOk : styles.regBadgeFail,
+                      ]}
+                    >
+                      ROUND {r.iteration}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.regStatus,
+                        { color: r.status === "ok" ? theme.success : theme.danger },
+                      ]}
+                    >
+                      {r.status === "ok" ? "✓ verde — todos passaram" : `✗ ${r.failingTests.length} falhas`}
+                    </Text>
+                  </View>
+                  {r.failingTests.length > 0 ? (
+                    <View style={{ marginTop: 6, gap: 2 }}>
+                      {r.failingTests.map((t) => (
+                        <Text key={t} style={styles.failingTest}>
+                          ✗ {t}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {evidence.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>EVIDÊNCIAS</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-              {evidence.map((name) => (
-                <Image key={name} source={{ uri: api.evidenceUrl(runId, name) }} style={styles.evidence} />
-              ))}
-            </ScrollView>
+            {Array.from(evidenceByIteration.entries()).map(([iter, shots]) => (
+              <View key={iter} style={{ marginBottom: 14 }}>
+                <Text style={styles.iterHeader}>round {iter}</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 10, paddingHorizontal: 12 }}
+                >
+                  {shots.map((s) => (
+                    <View key={s.url + s.name} style={styles.shotCard}>
+                      <Image source={{ uri: s.url }} style={styles.evidence} />
+                      <Text style={styles.shotLabel} numberOfLines={2}>
+                        {s.label}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ))}
           </View>
         ) : null}
 
@@ -168,17 +279,38 @@ export const RunScreen: React.FC = () => {
   );
 };
 
+function groupBy<T, K extends string | number>(arr: T[], keyOf: (t: T) => K): Map<K, T[]> {
+  const m = new Map<K, T[]>();
+  for (const item of arr) {
+    const k = keyOf(item);
+    const list = m.get(k);
+    if (list) list.push(item);
+    else m.set(k, [item]);
+  }
+  return m;
+}
+
 const styles = StyleSheet.create({
   section: { marginTop: 16, gap: 8 },
   sectionTitle: { color: theme.textMuted, fontSize: 11, letterSpacing: 2, paddingHorizontal: 12 },
+  iterHeader: {
+    color: theme.primarySoft,
+    fontFamily: theme.fontMono,
+    fontSize: 12,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+    letterSpacing: 1,
+  },
+  shotCard: { width: 220, gap: 6 },
   evidence: {
-    width: 180,
-    height: 110,
+    width: 220,
+    height: 140,
     borderRadius: theme.radius,
     backgroundColor: theme.surface,
     borderWidth: 1,
     borderColor: theme.border,
   },
+  shotLabel: { color: theme.textMuted, fontSize: 12, fontFamily: theme.fontMono },
   logBox: {
     backgroundColor: theme.bgDeep,
     borderRadius: theme.radius,
@@ -209,4 +341,38 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: theme.primary },
+  iterTag: {
+    color: theme.textMuted,
+    fontFamily: theme.fontMono,
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 8,
+    letterSpacing: 1,
+  },
+  regBox: {
+    padding: 12,
+    borderRadius: theme.radius,
+    borderWidth: 1,
+  },
+  regOk: { backgroundColor: "rgba(52, 211, 153, 0.10)", borderColor: theme.success },
+  regFail: { backgroundColor: "rgba(248, 113, 113, 0.10)", borderColor: theme.danger },
+  regHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  regBadge: {
+    fontFamily: theme.fontMono,
+    fontSize: 11,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: "white",
+  },
+  regBadgeOk: { backgroundColor: theme.success },
+  regBadgeFail: { backgroundColor: theme.danger },
+  regStatus: { fontWeight: "700", fontSize: 13, flex: 1 },
+  failingTest: {
+    color: theme.danger,
+    fontFamily: theme.fontMono,
+    fontSize: 12,
+    paddingLeft: 8,
+  },
 });

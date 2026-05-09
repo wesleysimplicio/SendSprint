@@ -77,17 +77,23 @@ class StartRunResponse(BaseModel):
 
 
 class RunStepEvent(BaseModel):
-    type: Literal["step", "log", "evidence", "summary", "done", "error"] = "step"
+    type: Literal["step", "log", "evidence", "loop", "regression", "summary", "done", "error"] = (
+        "step"
+    )
     run_id: str
     step: int | None = None
     name: str | None = None
     status: str | None = None
     message: str | None = None
     evidence_path: str | None = None
+    evidence_label: str | None = None
     progress: float | None = None
     summary: str | None = None
     pr_url: str | None = None
     failed: bool | None = None
+    iteration: int | None = None
+    max_iterations: int | None = None
+    failing_tests: list[str] | None = None
 
 
 class RunStatus(BaseModel):

@@ -66,17 +66,29 @@ export type RunStatus = {
 };
 
 export type RunEvent = {
-  type: "step" | "log" | "evidence" | "summary" | "done" | "error";
+  type:
+    | "step"
+    | "log"
+    | "evidence"
+    | "loop"
+    | "regression"
+    | "summary"
+    | "done"
+    | "error";
   run_id: string;
   step?: number;
   name?: string;
   status?: string;
   message?: string;
   evidence_path?: string;
+  evidence_label?: string;
   progress?: number;
   summary?: string;
   pr_url?: string;
   failed?: boolean;
+  iteration?: number;
+  max_iterations?: number;
+  failing_tests?: string[];
 };
 
 export type ImportSprintsResponse = { job_id: string; started: boolean };
