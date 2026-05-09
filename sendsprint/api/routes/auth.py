@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import httpx
 from fastapi import APIRouter, HTTPException
 
@@ -27,11 +29,9 @@ def auth_jira(req: JiraAuthRequest) -> AuthResponse:
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Jira unreachable: {exc}") from exc
 
-    try:
+    # Keyring may be unavailable in some envs; auth still validated.
+    with contextlib.suppress(credentials.CredentialError):
         credentials.set_secret("jira", req.email, req.api_token)
-    except credentials.CredentialError:
-        # Keyring may be unavailable in some envs; auth still validated.
-        pass
 
     return AuthResponse(
         provider="jira",
@@ -59,10 +59,8 @@ def auth_azure(req: AzureAuthRequest) -> AuthResponse:
         raise HTTPException(status_code=502, detail=f"ADO unreachable: {exc}") from exc
 
     account = f"{org}/{req.project}"
-    try:
+    with contextlib.suppress(credentials.CredentialError):
         credentials.set_secret("azuredevops", account, req.pat)
-    except credentials.CredentialError:
-        pass
 
     return AuthResponse(
         provider="azuredevops",

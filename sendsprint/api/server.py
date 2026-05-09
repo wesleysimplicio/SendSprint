@@ -27,7 +27,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="SendSprint Mobile API",
         version=__version__,
-        description="HTTP + SSE API that lets the SendSprint mobile app drive the 10-step flow locally.",
+        description=(
+            "HTTP + SSE API that lets the SendSprint mobile app drive the 10-step flow locally."
+        ),
         lifespan=_lifespan,
     )
     app.add_middleware(

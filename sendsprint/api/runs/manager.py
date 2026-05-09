@@ -11,11 +11,9 @@ import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from sendsprint.api.runs import events
 from sendsprint.api.schemas import RunStatus, StartRunRequest
-
 
 _runs: dict[str, RunStatus] = {}
 _threads: dict[str, threading.Thread] = {}
@@ -81,9 +79,7 @@ def _worker(run_id: str, req: StartRunRequest) -> None:
         status.state = "failed"
         status.failed = True
         status.finished_at = datetime.utcnow().isoformat()
-        events.publish_threadsafe(
-            run_id, {"type": "error", "message": str(exc)}
-        )
+        events.publish_threadsafe(run_id, {"type": "error", "message": str(exc)})
 
 
 def evidence_root(run_id: str) -> Path:

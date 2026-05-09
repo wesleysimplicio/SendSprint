@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import threading
 import uuid
 from typing import Any
 
@@ -28,9 +27,9 @@ _imports: dict[str, dict[str, Any]] = {}
 
 @router.get("", response_model=list[SprintSummary])
 def list_sprints(
-    provider: Provider = Query(...),
-    board_id: str | None = Query(None, description="Jira board id"),
-    team_path: str | None = Query(None, description="ADO team iteration path"),
+    provider: Provider = Query(...),  # noqa: B008 — FastAPI dependency idiom
+    board_id: str | None = Query(None, description="Jira board id"),  # noqa: B008
+    team_path: str | None = Query(None, description="ADO team iteration path"),  # noqa: B008
 ) -> list[SprintSummary]:
     if provider == "jira":
         return _list_jira_active(board_id)
@@ -40,8 +39,8 @@ def list_sprints(
 @router.get("/{sprint_id}", response_model=SprintDetail)
 def get_sprint(
     sprint_id: str,
-    provider: Provider = Query(...),
-    scope: str | None = Query(None, description="'mine' filters to current user"),
+    provider: Provider = Query(...),  # noqa: B008 — FastAPI dependency idiom
+    scope: str | None = Query(None, description="'mine' filters to current user"),  # noqa: B008
 ) -> SprintDetail:
     op: Any
     if provider == "jira":

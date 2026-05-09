@@ -46,7 +46,7 @@ async def run_events(run_id: str) -> StreamingResponse:
         while True:
             try:
                 event = await asyncio.wait_for(events.drain(run_id), timeout=30.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 yield ": keepalive\n\n"
                 continue
             payload = json.dumps({**event, "run_id": run_id})

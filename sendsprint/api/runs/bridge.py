@@ -8,6 +8,7 @@ flow is always demoable end-to-end.
 
 from __future__ import annotations
 
+import contextlib
 import time
 from pathlib import Path
 from typing import Any
@@ -57,15 +58,14 @@ def _run_real(run_id: str, req: StartRunRequest) -> dict[str, Any]:
     else:
         op = AzureDevopsOperator(transport="auto")
 
-    if req.workspace_path:
-        ws = load_workspace(req.workspace_path)
-    else:
-        ws = None
+    ws = load_workspace(req.workspace_path) if req.workspace_path else None
 
     scope = build_scope(mode="mine") if req.mode == "mine" else None
 
     flow = SprintFlow(operator=op, workspace=ws, scope=scope)
-    events.publish_threadsafe(run_id, {"type": "step", "step": 1, "name": "read-sprint", "status": "running"})
+    events.publish_threadsafe(
+        run_id, {"type": "step", "step": 1, "name": "read-sprint", "status": "running"}
+    )
     result = flow.run(sprint_id=req.sprint_id)
 
     report = result.run_report
@@ -125,10 +125,8 @@ def _run_mock(run_id: str, req: StartRunRequest) -> dict[str, Any]:
         if name == "tests":
             evidence = Path("evidence") / run_id / "login-success.png"
             evidence.parent.mkdir(parents=True, exist_ok=True)
-            try:
+            with contextlib.suppress(OSError):
                 evidence.write_bytes(_blank_png())
-            except OSError:
-                pass
             events.publish_threadsafe(
                 run_id,
                 {
