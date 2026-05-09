@@ -1,4 +1,4 @@
-"""FastAPI server entry point for the SendSprint mobile API."""
+"""FastAPI server entry point for the SendSprint web API."""
 
 from __future__ import annotations
 
@@ -25,10 +25,10 @@ async def _lifespan(_app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="SendSprint Mobile API",
+        title="SendSprint Web API",
         version=__version__,
         description=(
-            "HTTP + SSE API that lets the SendSprint mobile app drive the 10-step flow locally."
+            "HTTP + SSE API that lets the SendSprint web app drive the 10-step flow locally."
         ),
         lifespan=_lifespan,
     )

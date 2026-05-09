@@ -1,4 +1,4 @@
-"""Pydantic schemas for the SendSprint mobile API."""
+"""Pydantic schemas for the SendSprint web API."""
 
 from __future__ import annotations
 

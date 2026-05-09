@@ -7,22 +7,33 @@ spring/fade.
 
 > Stack: Remotion 4 + React 19 + TypeScript. 1920×1080 @ 30fps. Saída MP4 (h264) ou WebM.
 
-## Preview
+## Previews
+
+### Skill explainer (56s)
 
 ![SendSprint explainer preview](./preview/sendsprint-preview.gif)
 
 <p align="center">
   <a href="./preview/sendsprint-explainer.mp4">
-    ▶️ Assistir o MP4 completo (1920×1080, 56s, 20 MB)
+    ▶️ MP4 completo (1920×1080, 56s, 20 MB)
   </a>
   &nbsp;·&nbsp;
   <a href="./preview/poster.png">🖼️ Poster PNG</a>
 </p>
 
-> O GIF acima é uma prévia de 16s @ 560p / 10fps (≈3 MB) só para o README. O
-> arquivo `preview/sendsprint-explainer.mp4` é o vídeo final em 1080p @ 30fps.
+### Run loop (22s) — usado no `web/README.md`
+
+![SendSprint run loop](./preview/runloop-preview.gif)
+
+<p align="center">
+  <a href="./preview/runloop.mp4">▶️ MP4 completo (1920×1080, 22s, 5.5 MB)</a>
+</p>
+
+> Os GIFs são previews 560p / 12fps. Os MP4s em `preview/` são 1080p @ 30fps.
 
 ## Cenas
+
+**Skill explainer** (`SendSprintExplainer`, 56s):
 
 | # | Cena | Duração | O que mostra |
 |---|---|---|---|
@@ -34,8 +45,18 @@ spring/fade.
 | 6 | `SetupScene` | 7s | Setup em 4 passos + terminal de instalação |
 | 7 | `OutroScene` | 6s | CTA "rode o sendsprint" |
 
-A timeline está centralizada em [`src/theme.ts`](./src/theme.ts) — ajuste
-`SCENES` se quiser remixar a ordem ou duração.
+**Run loop** (`SendSprintRunLoop`, 22s):
+
+| # | Bloco | Duração | O que mostra |
+|---|---|---|---|
+| 1 | Hero | ~2s | Título "rode até passar" + sub |
+| 2 | Round 1 | ~8s | Steps 1–6, regressão FALHA com 3 testes |
+| 3 | Fix-loop | ~3s | Patches sugeridos + retry |
+| 4 | Round 2 | ~6s | Re-roda steps 3–6, regressão VERDE + galeria |
+| 5 | Delivered | ~2s | "Sprint entregue" + URL do PR |
+
+A timeline da skill explainer está em [`src/theme.ts`](./src/theme.ts) (`SCENES`);
+o run loop tem timeline própria em [`src/scenes/RunLoopScene.tsx`](./src/scenes/RunLoopScene.tsx) (`T`).
 
 ## Como rodar
 
@@ -58,6 +79,14 @@ inspeciona props, edita e vê o reload na hora.
 |---|---|---|
 | `SendSprintExplainer` | 1920×1080 | YouTube / landing page |
 | `SendSprintExplainer1080Square` | 1080×1080 | Instagram / LinkedIn |
+| `SendSprintRunLoop` | 1920×1080 | Demo do loop p/ web/README.md |
+
+Render manual:
+
+```bash
+npx remotion render src/index.ts SendSprintRunLoop preview/runloop.mp4 \
+  --browser-executable=$(which chromium)   # ou chrome-headless-shell
+```
 
 Para renderizar a versão quadrada:
 

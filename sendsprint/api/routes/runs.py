@@ -60,7 +60,7 @@ async def run_events(run_id: str) -> StreamingResponse:
 
 @router.get("/{run_id}/evidence/{name}")
 def get_evidence(run_id: str, name: str) -> FileResponse:
-    """Serve a captured evidence file (screenshot/log) for the mobile UI."""
+    """Serve a captured evidence file (screenshot/log) for the web UI."""
     safe = os.path.basename(name)
     candidates = [
         Path("evidence") / run_id / safe,

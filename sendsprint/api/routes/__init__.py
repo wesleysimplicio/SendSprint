@@ -1,1 +1,1 @@
-"""HTTP routes for the SendSprint mobile API."""
+"""HTTP routes for the SendSprint web API."""

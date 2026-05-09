@@ -72,7 +72,7 @@ def auth_azure(req: AzureAuthRequest) -> AuthResponse:
 
 @router.get("/status", response_model=dict)
 def status() -> dict:
-    """Tell the mobile app which providers already have stored creds."""
+    """Tell the web app which providers already have stored creds."""
     return {
         "jira_configured": _has_any("jira"),
         "azuredevops_configured": _has_any("azuredevops"),

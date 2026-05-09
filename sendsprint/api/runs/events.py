@@ -1,7 +1,7 @@
 """In-memory event broker for live run streams.
 
 Runs publish events into a per-run asyncio.Queue. SSE handlers consume from
-that queue and forward to the mobile client. Background workers in a thread
+that queue and forward to the web client. Background workers in a thread
 push via ``publish_threadsafe`` since SprintFlow is sync.
 """
 

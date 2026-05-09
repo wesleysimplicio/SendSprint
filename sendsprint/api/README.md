@@ -1,7 +1,7 @@
 # SendSprint API
 
 FastAPI server que expõe o SendSprint (operadores Jira/ADO + SprintFlow) por
-HTTP + SSE. É o backend que o app `mobile/` consome localmente.
+HTTP + SSE. É o backend que o app `web/` consome localmente.
 
 ## Subir
 
@@ -68,7 +68,7 @@ data: {"type":"done","failed":false,"pr_url":"https://github.com/…/pull/42"}
 Se `repo_path` for passado, o backend tenta o `SprintFlow` real
 (`git worktree`, `npm install`, `pytest`, …). Sem `repo_path` ou sem
 credenciais válidas, cai num **modo demo** que simula os 10 steps com
-evidências e PR fictícios — útil pra desenvolver o app mobile.
+evidências e PR fictícios — útil pra desenvolver o app web.
 
 ## Estrutura
 

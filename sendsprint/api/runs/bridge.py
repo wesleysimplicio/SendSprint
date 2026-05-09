@@ -2,7 +2,7 @@
 
 Real flow runs are heavy (worktree, install, build, lint, tests, security,
 PR). When operator credentials + a repo are available, we call SprintFlow
-directly. Otherwise we emit a deterministic mock progression so the mobile
+directly. Otherwise we emit a deterministic mock progression so the web
 flow is always demoable end-to-end — including a regression failure on the
 first attempt, the fix loop kicking in, and a passing re-run before commit/PR.
 """

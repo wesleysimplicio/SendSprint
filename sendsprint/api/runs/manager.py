@@ -1,4 +1,4 @@
-"""In-memory run registry + threaded executor for the mobile API.
+"""In-memory run registry + threaded executor for the web API.
 
 We can't run SprintFlow inside FastAPI's event loop (it's sync + does heavy
 subprocess work), so each run gets a worker thread. The thread publishes

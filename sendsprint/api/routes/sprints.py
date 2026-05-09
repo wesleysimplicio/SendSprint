@@ -201,7 +201,7 @@ def _list_ado_active(team_path: str | None) -> list[SprintSummary]:
 
 
 def _demo_sprints(provider: Provider) -> list[SprintSummary]:
-    """Stub data so the mobile flow is always demoable, even without creds."""
+    """Stub data so the web flow is always demoable, even without creds."""
     return [
         SprintSummary(
             id="42",
@@ -215,7 +215,7 @@ def _demo_sprints(provider: Provider) -> list[SprintSummary]:
         ),
         SprintSummary(
             id="43",
-            name="Sprint 43 — Mobile push",
+            name="Sprint 43 — Push notifications",
             state="active",
             provider=provider,
             start_date="2026-05-08T00:00:00Z",
