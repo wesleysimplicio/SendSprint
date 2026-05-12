@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..models.reports import StepReport, TestEvidence
@@ -105,7 +105,7 @@ class TestRunner:
     def _exec(
         self, cmd: list[str], report: StepReport, *, kind: str
     ) -> StepReport:
-        report.started_at = datetime.now(tz=timezone.utc)
+        report.started_at = datetime.now(tz=UTC)
         try:
             result = subprocess.run(
                 cmd,
@@ -134,7 +134,7 @@ class TestRunner:
         except subprocess.TimeoutExpired:
             report.status = "failed"
             report.message = f"timeout after 600s: {' '.join(cmd)}"
-        report.finished_at = datetime.now(tz=timezone.utc)
+        report.finished_at = datetime.now(tz=UTC)
         return report
 
     def _collect_screenshots(self, report: StepReport) -> None:

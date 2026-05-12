@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-05-12
+
+### Added
+
+- `sendsprint/agents/sprint_importer.py` — materializes sprint items as agentic-starter task specs under `.specs/sprints/sprint-<id>/<key>.task.md` with YAML frontmatter (id, title, sprint, owner, status, source, type, parent, labels, imported_at), plus `SPRINT.md` index. Idempotent: preserves user edits.
+- `sendsprint/agents/pr_body_builder.py` — composes rich PR markdown body with sprint context, items block, step-report table, evidence list (✓/✗ per `TestEvidence`), security findings (severity + file:line), and DoD checklist linking to imported spec.
+- `SprintFlow` runs **Step 1.5** (import sprint specs) right after scope filter, and uses `PrBodyBuilder` for Step 9 PR body.
+- `RunReport.summary` appends a `RALPH_STATUS` block (`STATUS`, `TASKS_COMPLETED_THIS_LOOP`, `FILES_MODIFIED`, `TESTS_STATUS`, `EXIT_SIGNAL`, `RECOMMENDATION`) for Ralph-loop exit-gate detection.
+- `tests/test_sprint_importer.py` (7 tests) + `tests/test_pr_body_builder.py` (6 tests). Total suite: 130 passing.
+- Agentic-starter scaffold imported non-clobber: `.agents/`, `.codex/`, `.skills/` (caveman, ralph-loop, conventional-commits, everything-claude-code), `.claude/hooks/`, `.github/workflows/scaffold-self-check.yml`, ADR-template, PERSONAS, RELEASE, task-template.
+- `skills/claude/SKILL.md` v0.3.0 — documents multi-agent dispatch table (parallel `everything-claude-code` reviewers/resolvers per stack) and Ralph exit gate.
+
+### Changed
+
+- SKILL.md step numbering updated to include SprintImporter at Step 2 (downstream steps shifted by +1 in docs only — code `step=N` markers in `StepReport` unchanged).
+
 ## [0.4.1] - 2026-05-07
 
 ### Added

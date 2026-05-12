@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..models.reports import StepReport
@@ -51,7 +51,7 @@ class LintRunner:
 
     def run(self) -> StepReport:
         report = StepReport(step=4, name="lint", repo=str(self.repo))
-        report.started_at = datetime.now(tz=timezone.utc)
+        report.started_at = datetime.now(tz=UTC)
         report.status = "running"
 
         if self.custom_command:
@@ -62,7 +62,7 @@ class LintRunner:
             if not cmd_list:
                 report.status = "skipped"
                 report.message = f"no lint command for tech={tech}"
-                report.finished_at = datetime.now(tz=timezone.utc)
+                report.finished_at = datetime.now(tz=UTC)
                 return report
             cmd = list(cmd_list)
 
@@ -87,5 +87,5 @@ class LintRunner:
             report.status = "failed"
             report.message = f"timeout after 120s: {' '.join(cmd)}"
 
-        report.finished_at = datetime.now(tz=timezone.utc)
+        report.finished_at = datetime.now(tz=UTC)
         return report

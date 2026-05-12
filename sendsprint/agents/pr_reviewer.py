@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..models.reports import StepReport, TestEvidence
@@ -20,14 +20,14 @@ class PrReviewer:
 
     def review(self, source_branch: str, target_branch: str = "main") -> StepReport:
         report = StepReport(step=10, name="pr-review", repo=str(self.repo))
-        report.started_at = datetime.now(tz=timezone.utc)
+        report.started_at = datetime.now(tz=UTC)
         report.status = "running"
 
         diff = self._get_diff(source_branch, target_branch)
         if not diff:
             report.status = "ok"
             report.message = "no diff between branches"
-            report.finished_at = datetime.now(tz=timezone.utc)
+            report.finished_at = datetime.now(tz=UTC)
             return report
 
         issues = self._static_checks(diff)
@@ -51,7 +51,7 @@ class PrReviewer:
 
         report.status = "ok" if not issues else "failed"
         report.message = f"{len(issues)} review issue(s) found"
-        report.finished_at = datetime.now(tz=timezone.utc)
+        report.finished_at = datetime.now(tz=UTC)
         return report
 
     def _get_diff(self, source: str, target: str) -> str:

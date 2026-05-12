@@ -5,22 +5,18 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
-
-import pytest
 
 from sendsprint.scaffolder import (
+    _DESIGN_SECTIONS,
+    _DOMAIN_SECTIONS,
+    _PATTERNS_SECTIONS,
+    _VISION_SECTIONS,
     SPEC_FILES,
     Scaffolder,
     _add_header,
     _build_prompt,
     _offline_body,
-    _DESIGN_SECTIONS,
-    _DOMAIN_SECTIONS,
-    _PATTERNS_SECTIONS,
-    _VISION_SECTIONS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

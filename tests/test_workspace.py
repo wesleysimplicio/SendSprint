@@ -9,7 +9,6 @@ import yaml
 from sendsprint.models.workspace import RepoConfig, WorkspaceConfig
 from sendsprint.workspace.loader import load_workspace, new_project_dir, resolve_repo_path
 
-
 # ---------------------------------------------------------------------------
 # load_workspace
 # ---------------------------------------------------------------------------

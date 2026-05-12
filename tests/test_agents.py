@@ -7,14 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from sendsprint.agents.worktree import WorktreeError, WorktreeManager
 from sendsprint.agents.dev import DevAgent
 from sendsprint.agents.lint_runner import LintRunner
-from sendsprint.agents.test_runner import TestRunner
-from sendsprint.agents.security_reviewer import SecurityReviewer
 from sendsprint.agents.pr_reviewer import PrReviewer
+from sendsprint.agents.security_reviewer import SecurityReviewer
+from sendsprint.agents.test_runner import TestRunner
+from sendsprint.agents.worktree import WorktreeError, WorktreeManager
 from sendsprint.tech import TechFingerprint
-
 
 # ---------------------------------------------------------------------------
 # Helpers

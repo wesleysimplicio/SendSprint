@@ -6,7 +6,7 @@ import base64
 import logging
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +40,7 @@ class PrCreator:
         body: str = "",
     ) -> StepReport:
         report = StepReport(step=9, name="create-pr", repo=str(self.repo))
-        report.started_at = datetime.now(tz=timezone.utc)
+        report.started_at = datetime.now(tz=UTC)
         report.status = "running"
         try:
             if self.provider == "github":
@@ -57,7 +57,7 @@ class PrCreator:
         except Exception as exc:
             report.status = "failed"
             report.message = str(exc)[:2000]
-        report.finished_at = datetime.now(tz=timezone.utc)
+        report.finished_at = datetime.now(tz=UTC)
         return report
 
     def _create_github(self, source: str, title: str, body: str) -> PrInfo:

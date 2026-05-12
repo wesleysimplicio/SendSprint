@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,14 +20,16 @@ from pydantic import BaseModel, Field
 
 from sendsprint.agents.dev import DevAgent
 from sendsprint.agents.lint_runner import LintRunner
+from sendsprint.agents.pr_body_builder import PrBodyBuilder
 from sendsprint.agents.pr_creator import PrCreator
 from sendsprint.agents.pr_reviewer import PrReviewer
 from sendsprint.agents.security_reviewer import SecurityReviewer
+from sendsprint.agents.sprint_importer import SprintImporter, _sprint_dir_name
 from sendsprint.agents.test_runner import TestRunner
 from sendsprint.agents.worktree import WorktreeError, WorktreeManager
 from sendsprint.architecture import ArchitectureMapper, build_architecture
 from sendsprint.models import ArchitectureReport, Sprint
-from sendsprint.models.reports import PrInfo, RunReport, StepReport
+from sendsprint.models.reports import RunReport, StepReport
 from sendsprint.models.workspace import RepoConfig, ScopeConfig, WorkspaceConfig
 from sendsprint.operators.base import BaseOperator
 from sendsprint.scope import apply_scope
@@ -97,6 +99,9 @@ class SprintFlow:
         if self.scope.mode == "mine":
             report.user = self.scope.user_email or self.scope.user_display_name
 
+        # --- Step 1.5: Import sprint items as agentic-starter task specs ---
+        self._step1_5_import_specs(sprint, repo_path, report)
+
         notes: list[str] = []
         first_arch: ArchitectureReport | None = None
 
@@ -147,8 +152,14 @@ class SprintFlow:
 
             # --- Step 7: Fix loop ---
             self._step7_fix_loop(
-                dev, linter, runner, sec,
-                lint_report, test_reports, sec_report, report,
+                dev,
+                linter,
+                runner,
+                sec,
+                lint_report,
+                test_reports,
+                sec_report,
+                report,
             )
 
             # --- Step 8: Commit ---
@@ -168,11 +179,9 @@ class SprintFlow:
             )
 
             # --- Step 10: PR review + delivered ---
-            self._step10_review_and_deliver(
-                work_dir, branch_name, target, rpath, pr_report, report
-            )
+            self._step10_review_and_deliver(work_dir, branch_name, target, rpath, pr_report, report)
 
-        report.finished_at = datetime.now(tz=timezone.utc)
+        report.finished_at = datetime.now(tz=UTC)
         report.failed = any(s.status == "failed" for s in report.steps)
         report.summary = self._build_summary(report)
 
@@ -186,6 +195,24 @@ class SprintFlow:
 
     # ── Step implementations ──────────────────────────────────────────
 
+    def _step1_5_import_specs(
+        self,
+        sprint: Sprint,
+        repo_path: str | None,
+        report: RunReport,
+    ) -> None:
+        """Materialize sprint items as `.specs/sprints/sprint-<id>/<key>.task.md`."""
+        root: Path
+        if self.workspace and self.workspace.root_path:
+            root = Path(self.workspace.root_path)
+        elif repo_path:
+            root = Path(repo_path).resolve()
+        else:
+            root = Path.cwd()
+        importer = SprintImporter(root)
+        step = importer.import_sprint(sprint)
+        report.steps.append(step)
+
     def _step1_read_sprint(
         self,
         sprint_id: str | int | None,
@@ -194,7 +221,7 @@ class SprintFlow:
         **kwargs: Any,
     ) -> Sprint:
         step = StepReport(step=1, name="read-sprint", status="running")
-        step.started_at = datetime.now(tz=timezone.utc)
+        step.started_at = datetime.now(tz=UTC)
         identifier = sprint_id if sprint_id is not None else iteration_path
         if identifier is None:
             raise ValueError("provide sprint_id (Jira) or iteration_path (Azure DevOps)")
@@ -206,7 +233,7 @@ class SprintFlow:
         report.sprint_id = sprint.id
         step.status = "ok"
         step.message = f"{len(sprint.items)} items read via {self.operator.source}"
-        step.finished_at = datetime.now(tz=timezone.utc)
+        step.finished_at = datetime.now(tz=UTC)
         report.steps.append(step)
         return sprint
 
@@ -214,25 +241,21 @@ class SprintFlow:
         self, repo: Path, fp: TechFingerprint, report: RunReport
     ) -> tuple[ArchitectureReport, Any]:
         step = StepReport(step=2, name="architecture", repo=str(repo), status="running")
-        step.started_at = datetime.now(tz=timezone.utc)
+        step.started_at = datetime.now(tz=UTC)
         arch = self.mapper.inspect(repo)
         build_result = None
         if not arch.is_mapped:
             build_result = build_architecture(repo, fingerprint=fp)
             arch = self.mapper.inspect(repo)
-            step.message = (
-                f"built {len(build_result.created_files)} doc(s), score {arch.score:.2f}"
-            )
+            step.message = f"built {len(build_result.created_files)} doc(s), score {arch.score:.2f}"
         else:
             step.message = f"already mapped, score {arch.score:.2f}"
         step.status = "ok" if arch.is_mapped else "failed"
-        step.finished_at = datetime.now(tz=timezone.utc)
+        step.finished_at = datetime.now(tz=UTC)
         report.steps.append(step)
         return arch, build_result
 
-    def _step3_dev(
-        self, dev: DevAgent, report: RunReport, repo_cfg: RepoConfig | None
-    ) -> None:
+    def _step3_dev(self, dev: DevAgent, report: RunReport, repo_cfg: RepoConfig | None) -> None:
         install_report = dev.install()
         report.steps.append(install_report)
         custom_build = repo_cfg.build_command if repo_cfg else None
@@ -250,9 +273,7 @@ class SprintFlow:
             report.steps.append(r)
         return results
 
-    def _step6_security(
-        self, sec: SecurityReviewer, report: RunReport
-    ) -> StepReport:
+    def _step6_security(self, sec: SecurityReviewer, report: RunReport) -> StepReport:
         result = sec.scan()
         report.steps.append(result)
         return result
@@ -283,10 +304,8 @@ class SprintFlow:
             if sec_fail:
                 failures.append("security")
 
-            loop_step = StepReport(
-                step=7, name=f"fix-loop-{attempt}", status="running"
-            )
-            loop_step.started_at = datetime.now(tz=timezone.utc)
+            loop_step = StepReport(step=7, name=f"fix-loop-{attempt}", status="running")
+            loop_step.started_at = datetime.now(tz=UTC)
 
             dev.build()
             lint_report = linter.run()
@@ -304,25 +323,28 @@ class SprintFlow:
             )
             loop_step.status = "failed" if still_failing else "ok"
             loop_step.message = (
-                f"attempt {attempt}/{MAX_FIX_LOOPS}, "
-                f"triggered by: {', '.join(failures)}"
+                f"attempt {attempt}/{MAX_FIX_LOOPS}, triggered by: {', '.join(failures)}"
             )
-            loop_step.finished_at = datetime.now(tz=timezone.utc)
+            loop_step.finished_at = datetime.now(tz=UTC)
             report.steps.append(loop_step)
 
-    def _step8_commit(
-        self, work_dir: Path, sprint: Sprint, report: RunReport
-    ) -> StepReport:
+    def _step8_commit(self, work_dir: Path, sprint: Sprint, report: RunReport) -> StepReport:
         step = StepReport(step=8, name="commit", repo=str(work_dir), status="running")
-        step.started_at = datetime.now(tz=timezone.utc)
+        step.started_at = datetime.now(tz=UTC)
         try:
             subprocess.run(
                 ["git", "add", "-A"],
-                cwd=str(work_dir), capture_output=True, text=True, timeout=30,
+                cwd=str(work_dir),
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             result = subprocess.run(
                 ["git", "diff", "--cached", "--quiet"],
-                cwd=str(work_dir), capture_output=True, text=True, timeout=15,
+                cwd=str(work_dir),
+                capture_output=True,
+                text=True,
+                timeout=15,
             )
             if result.returncode == 0:
                 step.status = "skipped"
@@ -331,8 +353,11 @@ class SprintFlow:
                 msg = f"[SendSprint] {sprint.name} — automated delivery"
                 subprocess.run(
                     ["git", "commit", "-m", msg],
-                    cwd=str(work_dir), capture_output=True, text=True,
-                    timeout=30, check=True,
+                    cwd=str(work_dir),
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=True,
                 )
                 step.status = "ok"
                 step.message = "changes committed"
@@ -342,7 +367,7 @@ class SprintFlow:
         except Exception as exc:
             step.status = "failed"
             step.message = str(exc)[:500]
-        step.finished_at = datetime.now(tz=timezone.utc)
+        step.finished_at = datetime.now(tz=UTC)
         report.steps.append(step)
         return step
 
@@ -363,10 +388,12 @@ class SprintFlow:
             reviewers=reviewers,
         )
         title = f"[SendSprint] {sprint.name} — {work_dir.name}"
-        body = (
-            f"Automated PR by SendSprint.\n\n"
-            f"Sprint: {sprint.name} ({sprint.id})\n"
-            f"Items: {len(sprint.items)}\n"
+        sprint_slug = _sprint_dir_name(sprint)
+        body = PrBodyBuilder(work_dir).build(
+            sprint=sprint,
+            repo_name=work_dir.name,
+            steps=report.steps,
+            sprint_slug=sprint_slug,
         )
         result = creator.create(source_branch=branch, title=title, body=body)
         report.steps.append(result)
@@ -386,9 +413,8 @@ class SprintFlow:
         report.steps.append(review_result)
 
         done = StepReport(step=10, name="delivered", repo=str(rpath), status="ok")
-        done.message = (
-            f"PR for {rpath.name} delivered"
-            + (f" -> {pr_report.pr.url}" if pr_report and pr_report.pr else "")
+        done.message = f"PR for {rpath.name} delivered" + (
+            f" -> {pr_report.pr.url}" if pr_report and pr_report.pr else ""
         )
         report.steps.append(done)
         if pr_report and pr_report.pr:
@@ -411,9 +437,7 @@ class SprintFlow:
 
     def _resolve_repos(self, repo_path: str | None) -> list[tuple[RepoConfig | None, Path]]:
         if self.workspace and self.workspace.repos:
-            return [
-                (r, resolve_repo_path(self.workspace, r)) for r in self.workspace.repos
-            ]
+            return [(r, resolve_repo_path(self.workspace, r)) for r in self.workspace.repos]
         if repo_path:
             return [(None, Path(repo_path).resolve())]
         return []
@@ -431,4 +455,20 @@ class SprintFlow:
         fail = sum(1 for s in report.steps if s.status == "failed")
         skip = sum(1 for s in report.steps if s.status == "skipped")
         prs = len(report.prs)
-        return f"{ok} ok, {fail} failed, {skip} skipped, {prs} PR(s)"
+        files_modified = sum(len(s.evidence) for s in report.steps if s.evidence)
+        tests_status = "PASSING" if fail == 0 else "FAILING"
+        flow_status = "COMPLETE" if fail == 0 else "BLOCKED"
+        exit_signal = "true" if fail == 0 else "false"
+        head = f"{ok} ok, {fail} failed, {skip} skipped, {prs} PR(s)"
+        ralph_block = (
+            "\n---RALPH_STATUS---\n"
+            f"STATUS: {flow_status}\n"
+            f"TASKS_COMPLETED_THIS_LOOP: {ok}\n"
+            f"FILES_MODIFIED: {files_modified}\n"
+            f"TESTS_STATUS: {tests_status}\n"
+            "WORK_TYPE: IMPLEMENTATION\n"
+            f"EXIT_SIGNAL: {exit_signal}\n"
+            f"RECOMMENDATION: {'deliver' if fail == 0 else 'inspect failed steps'}\n"
+            "---END_RALPH_STATUS---"
+        )
+        return head + ralph_block

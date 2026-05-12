@@ -1,11 +1,11 @@
 """Tests for sendsprint/tech/detector.py — detect_tech(repo_path) -> TechFingerprint."""
 
 import json
-import pytest
 from pathlib import Path
 
-from sendsprint.tech.detector import detect_tech, TechFingerprint
+import pytest
 
+from sendsprint.tech.detector import TechFingerprint, detect_tech
 
 # ---------------------------------------------------------------------------
 # Helpers

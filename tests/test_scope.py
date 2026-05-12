@@ -8,7 +8,6 @@ from sendsprint.models.sprint import Sprint, SprintItem
 from sendsprint.models.workspace import ScopeConfig
 from sendsprint.scope import _matches_user, apply_scope, build_scope
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

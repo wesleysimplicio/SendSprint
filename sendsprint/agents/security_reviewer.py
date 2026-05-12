@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..models.reports import SecurityFinding, StepReport
@@ -52,7 +52,7 @@ class SecurityReviewer:
 
     def scan(self) -> StepReport:
         report = StepReport(step=6, name="security-review", repo=str(self.repo))
-        report.started_at = datetime.now(tz=timezone.utc)
+        report.started_at = datetime.now(tz=UTC)
         report.status = "running"
 
         findings: list[SecurityFinding] = []
@@ -65,7 +65,7 @@ class SecurityReviewer:
             "ok" if not any(f.severity in ("high", "critical") for f in findings) else "failed"
         )
         report.message = f"{len(findings)} finding(s) flagged"
-        report.finished_at = datetime.now(tz=timezone.utc)
+        report.finished_at = datetime.now(tz=UTC)
         return report
 
     def _scan_secrets(self) -> list[SecurityFinding]:
