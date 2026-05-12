@@ -38,11 +38,27 @@ class WorkspaceConfig(BaseModel):
     default_base_branch: str = "main"
 
 
+DEFAULT_DEVELOPABLE_STATUSES = (
+    "new",
+    "active",
+    "to do",
+    "todo",
+    "open",
+    "in progress",
+    "doing",
+    "selected for development",
+    "backlog",
+    "ready",
+)
+
+
 class ScopeConfig(BaseModel):
-    """Filter: full sprint or only the running user's items."""
+    """Filter: full sprint, only the running user's items, explicit keys, or status whitelist."""
 
     mode: ScopeMode = "all"
     user_email: str | None = None
     user_account_id: str | None = None
     user_descriptor: str | None = None
     user_display_name: str | None = None
+    allowed_statuses: list[str] = Field(default_factory=lambda: list(DEFAULT_DEVELOPABLE_STATUSES))
+    task_keys: list[str] | None = None

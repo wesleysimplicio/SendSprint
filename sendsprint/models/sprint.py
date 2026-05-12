@@ -102,10 +102,11 @@ class ArchitectureReport(BaseModel):
     has_dependency_graph: bool = False
     has_deploy_topology: bool = False
     has_readme: bool = False
+    has_agentic_starter: bool = False
     missing: list[str] = Field(default_factory=list)
     score: float = 0.0
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
     @property
     def is_mapped(self) -> bool:
-        return self.score >= 0.6
+        return self.has_agentic_starter or self.score >= 0.6

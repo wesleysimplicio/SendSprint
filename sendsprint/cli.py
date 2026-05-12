@@ -79,7 +79,9 @@ def read_ado(
 @app.command(name="check-architecture")
 def check_architecture(
     repo_path: Path = typer.Argument(..., exists=True, file_okay=False),
-    build_if_missing: bool = typer.Option(False, "--build", help="Generate baseline docs if missing"),
+    build_if_missing: bool = typer.Option(
+        False, "--build", help="Generate baseline docs if missing"
+    ),
 ) -> None:
     """Step 2 — inspect (and optionally build) repo architecture docs."""
     if build_if_missing:
@@ -115,10 +117,22 @@ def run_flow(
     repo_path: Path | None = typer.Option(None, "--repo", "-r", exists=True, file_okay=False),
     transport: str = typer.Option("auto"),
     scope_mode: str = typer.Option("all", "--scope", help="all | mine"),
+    task: list[str] = typer.Option(None, "--task", help="Process only this task key (repeatable)"),
+    tasks: str | None = typer.Option(
+        None, "--tasks", help="Comma-separated task keys (e.g. PROJ-1,PROJ-2)"
+    ),
+    status: str | None = typer.Option(
+        None,
+        "--status",
+        help="Comma-separated allowed statuses (default: new,active,todo,open,in progress,...)",
+    ),
     output: Path | None = typer.Option(None, "-o", help="Write RunReport JSON"),
 ) -> None:
-    """Run the full 9-step SendSprint flow."""
+    """Run the full 10-step SendSprint flow."""
     ws = load_workspace(workspace_file) if workspace_file else None
+
+    task_keys = _collect_task_keys(task, tasks)
+    allowed = _parse_csv(status)
 
     if source == "jira":
         operator = JiraOperator(transport=transport)
@@ -127,6 +141,8 @@ def run_flow(
             mode=scope_mode,
             user_email=user_info.get("emailAddress"),
             user_account_id=user_info.get("accountId"),
+            allowed_statuses=allowed,
+            task_keys=task_keys,
         )
     elif source == "azuredevops":
         operator = AzureDevopsOperator(transport=transport)
@@ -136,6 +152,8 @@ def run_flow(
             user_email=user_info.get("emailAddress"),
             user_descriptor=user_info.get("descriptor"),
             user_display_name=user_info.get("displayName"),
+            allowed_statuses=allowed,
+            task_keys=task_keys,
         )
     else:
         raise typer.BadParameter("source must be 'jira' or 'azuredevops'")
@@ -165,7 +183,11 @@ def run_flow(
     for note in result.notes:
         console.print(f"[yellow]note:[/yellow] {note}")
     if output:
-        data = result.run_report.model_dump_json(indent=2) if result.run_report else result.model_dump_json(indent=2)
+        data = (
+            result.run_report.model_dump_json(indent=2)
+            if result.run_report
+            else result.model_dump_json(indent=2)
+        )
         output.write_text(data)
         console.print(f"[green]wrote report to {output}[/green]")
 
@@ -287,11 +309,13 @@ def sprint(
     identifier: str | None = typer.Option(
         None, "--id", help="sprint id or iteration path (defaults to profile)"
     ),
-    repo_path: Path | None = typer.Option(
-        None, "--repo", "-r", help="defaults to profile or cwd"
-    ),
+    repo_path: Path | None = typer.Option(None, "--repo", "-r", help="defaults to profile or cwd"),
     workspace_file: Path | None = typer.Option(None, "--workspace", "-w"),
     scope_mode: str | None = typer.Option(None, "--scope", help="all | mine"),
+    task: list[str] = typer.Option(None, "--task", help="Process only this task key (repeatable)"),
+    tasks: str | None = typer.Option(None, "--tasks", help="Comma-separated task keys"),
+    status: str | None = typer.Option(None, "--status", help="Comma-separated allowed statuses"),
+    pick: bool = typer.Option(False, "--pick", help="Interactive picker: [a]ll / [m]ine / [c]ode"),
     output: Path | None = typer.Option(None, "-o"),
 ) -> None:
     """One-shot — runs the full 10-step flow with credentials and defaults from profile.
@@ -302,6 +326,12 @@ def sprint(
     provider = provider or p.default_provider
     if not provider:
         provider = typer.prompt("provider", default="jira")
+
+    task_keys = _collect_task_keys(task, tasks)
+    allowed = _parse_csv(status)
+
+    if pick and not task_keys and not scope_mode:
+        scope_mode, task_keys = _interactive_picker()
 
     scope_mode = scope_mode or p.default_scope or "mine"
     repo = repo_path or (Path(p.default_repo_path) if p.default_repo_path else Path.cwd())
@@ -329,6 +359,8 @@ def sprint(
             mode=scope_mode,
             user_email=user_info.get("emailAddress"),
             user_account_id=user_info.get("accountId"),
+            allowed_statuses=allowed,
+            task_keys=task_keys,
         )
         sprint_id: int | None = int(identifier)
         iteration_path: str | None = None
@@ -357,6 +389,8 @@ def sprint(
             user_email=user_info.get("emailAddress"),
             user_descriptor=user_info.get("descriptor"),
             user_display_name=user_info.get("displayName"),
+            allowed_statuses=allowed,
+            task_keys=task_keys,
         )
         sprint_id = None
         iteration_path = identifier
@@ -422,6 +456,34 @@ def _render_run_report(report) -> None:
     if report.prs:
         console.print(f"[bold]PRs:[/bold] {', '.join(p.url or str(p.number) for p in report.prs)}")
     console.print(f"[bold]Summary:[/bold] {report.summary}")
+
+
+def _parse_csv(value: str | None) -> list[str] | None:
+    if not value:
+        return None
+    parts = [v.strip() for v in value.split(",") if v.strip()]
+    return parts or None
+
+
+def _collect_task_keys(repeatable: list[str] | None, csv: str | None) -> list[str] | None:
+    keys: list[str] = []
+    if repeatable:
+        keys.extend(k.strip() for k in repeatable if k and k.strip())
+    if csv:
+        keys.extend(k.strip() for k in csv.split(",") if k.strip())
+    return keys or None
+
+
+def _interactive_picker() -> tuple[str, list[str] | None]:
+    """Prompt user: [a]ll / [m]ine / [c]ode. Returns (scope_mode, task_keys)."""
+    choice = typer.prompt("scope? [a]ll / [m]ine / [c]ode", default="m").strip().lower()
+    if choice.startswith("a"):
+        return "all", None
+    if choice.startswith("c"):
+        raw = typer.prompt("task code(s), comma-separated (e.g. PROJ-1,PROJ-2)")
+        keys = [k.strip() for k in raw.split(",") if k.strip()]
+        return "all", keys or None
+    return "mine", None
 
 
 if __name__ == "__main__":

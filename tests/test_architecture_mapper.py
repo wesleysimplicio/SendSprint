@@ -62,3 +62,25 @@ def test_missing_repo_path_raises(tmp_path: Path) -> None:
     missing = tmp_path / "does-not-exist"
     with pytest.raises(FileNotFoundError):
         ArchitectureMapper().inspect(missing)
+
+
+def test_agentic_starter_marker_short_circuits_is_mapped(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("# Agents")
+    report = ArchitectureMapper().inspect(tmp_path)
+    assert report.has_agentic_starter is True
+    assert report.is_mapped is True
+
+
+def test_agentic_starter_specs_design_also_detected(tmp_path: Path) -> None:
+    specs = tmp_path / ".specs" / "architecture"
+    specs.mkdir(parents=True)
+    (specs / "DESIGN.md").write_text("# Design")
+    report = ArchitectureMapper().inspect(tmp_path)
+    assert report.has_agentic_starter is True
+    assert report.is_mapped is True
+
+
+def test_no_starter_marker_does_not_set_flag(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("# Readme")
+    report = ArchitectureMapper().inspect(tmp_path)
+    assert report.has_agentic_starter is False

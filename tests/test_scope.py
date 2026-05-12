@@ -12,6 +12,7 @@ from sendsprint.scope import _matches_user, apply_scope, build_scope
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _item(
     id: str = "1",
     key: str = "PROJ-1",
@@ -40,6 +41,7 @@ def _sprint(*items: SprintItem) -> Sprint:
 # ---------------------------------------------------------------------------
 # build_scope
 # ---------------------------------------------------------------------------
+
 
 def test_build_scope_all_mode() -> None:
     scope = build_scope(mode="all")
@@ -78,12 +80,13 @@ def test_build_scope_invalid_mode_raises() -> None:
 # apply_scope — mode="all"
 # ---------------------------------------------------------------------------
 
-def test_apply_scope_all_returns_same_sprint_object() -> None:
+
+def test_apply_scope_all_preserves_items_when_status_developable() -> None:
     item = _item(assignee_email="a@b.com")
     sprint = _sprint(item)
     scope = ScopeConfig(mode="all")
     result = apply_scope(sprint, scope)
-    assert result is sprint
+    assert [i.id for i in result.items] == [i.id for i in sprint.items]
 
 
 def test_apply_scope_all_preserves_all_items() -> None:
@@ -101,6 +104,7 @@ def test_apply_scope_all_preserves_all_items() -> None:
 # apply_scope — mode="mine", filter by account_id
 # ---------------------------------------------------------------------------
 
+
 def test_apply_scope_mine_filters_by_account_id() -> None:
     me = _item("1", assignee_account_id="acc-me")
     other = _item("2", assignee_account_id="acc-other")
@@ -115,6 +119,7 @@ def test_apply_scope_mine_filters_by_account_id() -> None:
 # apply_scope — mode="mine", filter by email (case-insensitive)
 # ---------------------------------------------------------------------------
 
+
 def test_apply_scope_mine_filters_by_email_case_insensitive() -> None:
     me = _item("1", assignee_email="Dev@Example.COM")
     other = _item("2", assignee_email="other@example.com")
@@ -128,6 +133,7 @@ def test_apply_scope_mine_filters_by_email_case_insensitive() -> None:
 # ---------------------------------------------------------------------------
 # apply_scope — mode="mine", filter by display_name
 # ---------------------------------------------------------------------------
+
 
 def test_apply_scope_mine_filters_by_display_name() -> None:
     me = _item("1", assignee="Alice Smith")
@@ -151,6 +157,7 @@ def test_apply_scope_mine_display_name_is_case_insensitive() -> None:
 # apply_scope — mode="mine", filter by descriptor
 # ---------------------------------------------------------------------------
 
+
 def test_apply_scope_mine_filters_by_descriptor() -> None:
     me = _item("1", assignee_descriptor="vstfs:///Classification/TeamProject/abc")
     other = _item("2", assignee_descriptor="vstfs:///Classification/TeamProject/xyz")
@@ -164,6 +171,7 @@ def test_apply_scope_mine_filters_by_descriptor() -> None:
 # ---------------------------------------------------------------------------
 # apply_scope — mode="mine", no matches
 # ---------------------------------------------------------------------------
+
 
 def test_apply_scope_mine_no_matches_returns_empty_items() -> None:
     sprint = _sprint(
@@ -188,6 +196,7 @@ def test_apply_scope_mine_empty_sprint_returns_empty() -> None:
 # _matches_user (unit)
 # ---------------------------------------------------------------------------
 
+
 def test_matches_user_account_id_priority() -> None:
     item = _item(assignee_account_id="acc-me", assignee_email="wrong@x.com")
     scope = ScopeConfig(mode="mine", user_account_id="acc-me", user_email="other@x.com")
@@ -210,3 +219,88 @@ def test_matches_user_email_none_on_item_skips_email_check() -> None:
     item = _item(assignee_account_id="other-acc")
     scope = ScopeConfig(mode="mine", user_email="dev@x.com")
     assert _matches_user(item, scope) is False
+
+
+# ---------------------------------------------------------------------------
+# apply_scope — status whitelist
+# ---------------------------------------------------------------------------
+
+
+def _item_status(id: str, status: str) -> SprintItem:
+    return SprintItem(id=id, key=f"K-{id}", type="Task", title="t", status=status)
+
+
+def test_apply_scope_status_filter_keeps_developable() -> None:
+    sprint = _sprint(
+        _item_status("1", "New"),
+        _item_status("2", "Active"),
+        _item_status("3", "Done"),
+        _item_status("4", "In Progress"),
+    )
+    scope = ScopeConfig(mode="all", allowed_statuses=["new", "active", "in progress"])
+    result = apply_scope(sprint, scope)
+    assert [i.id for i in result.items] == ["1", "2", "4"]
+
+
+def test_apply_scope_status_filter_case_insensitive() -> None:
+    sprint = _sprint(_item_status("1", "NEW"), _item_status("2", "done"))
+    scope = ScopeConfig(mode="all", allowed_statuses=["new"])
+    result = apply_scope(sprint, scope)
+    assert [i.id for i in result.items] == ["1"]
+
+
+def test_apply_scope_empty_allowed_statuses_is_passthrough() -> None:
+    sprint = _sprint(_item_status("1", "Done"), _item_status("2", "Closed"))
+    scope = ScopeConfig(mode="all", allowed_statuses=[])
+    result = apply_scope(sprint, scope)
+    assert len(result.items) == 2
+
+
+# ---------------------------------------------------------------------------
+# apply_scope — task_keys precedence
+# ---------------------------------------------------------------------------
+
+
+def test_apply_scope_task_keys_overrides_mode_and_status() -> None:
+    sprint = _sprint(
+        _item_status("1", "Done"),  # would be filtered by status
+        _item_status("2", "New"),
+        _item_status("3", "Active"),
+    )
+    scope = ScopeConfig(
+        mode="mine",
+        user_email="nobody@x.com",  # would filter everything
+        allowed_statuses=["new"],
+        task_keys=["K-1", "K-3"],
+    )
+    result = apply_scope(sprint, scope)
+    assert {i.id for i in result.items} == {"1", "3"}
+
+
+def test_apply_scope_task_keys_match_by_id_or_key_case_insensitive() -> None:
+    sprint = _sprint(_item_status("99", "Done"))
+    scope = ScopeConfig(mode="all", task_keys=["k-99"])
+    result = apply_scope(sprint, scope)
+    assert len(result.items) == 1
+
+
+# ---------------------------------------------------------------------------
+# build_scope — new args
+# ---------------------------------------------------------------------------
+
+
+def test_build_scope_default_statuses_seeded() -> None:
+    scope = build_scope(mode="all")
+    assert "new" in scope.allowed_statuses
+    assert "active" in scope.allowed_statuses
+    assert "in progress" in scope.allowed_statuses
+
+
+def test_build_scope_custom_statuses_replace_defaults() -> None:
+    scope = build_scope(mode="all", allowed_statuses=["ready"])
+    assert scope.allowed_statuses == ["ready"]
+
+
+def test_build_scope_task_keys_trimmed_and_stored() -> None:
+    scope = build_scope(mode="all", task_keys=["  PROJ-1 ", "", "PROJ-2"])
+    assert scope.task_keys == ["PROJ-1", "PROJ-2"]

@@ -9,6 +9,11 @@ from sendsprint.models import ArchitectureReport
 
 logger = logging.getLogger(__name__)
 
+AGENTIC_STARTER_MARKERS = (
+    "AGENTS.md",
+    ".specs/architecture/DESIGN.md",
+    ".specs/product/VISION.md",
+)
 ARCHITECTURE_FILE_NAMES = ("ARCHITECTURE.md", "ARCHITECTURE.MD", "Architecture.md")
 README_FILE_NAMES = ("README.md", "README.MD", "Readme.md")
 ADR_DIRS = ("docs/adr", "docs/adrs", "docs/architecture/decisions", "adr", "adrs")
@@ -57,6 +62,7 @@ class ArchitectureMapper:
             has_readme=_any_file_exists(root, README_FILE_NAMES),
             has_dependency_graph=_any_path_exists(root, DEPENDENCY_FILES),
             has_deploy_topology=_any_path_exists(root, DEPLOY_FILES),
+            has_agentic_starter=_any_path_exists(root, AGENTIC_STARTER_MARKERS),
         )
         adr_dir = _first_existing_dir(root, ADR_DIRS)
         if adr_dir:

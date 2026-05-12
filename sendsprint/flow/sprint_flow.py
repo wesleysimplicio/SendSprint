@@ -24,11 +24,12 @@ from sendsprint.agents.pr_body_builder import PrBodyBuilder
 from sendsprint.agents.pr_creator import PrCreator
 from sendsprint.agents.pr_reviewer import PrReviewer
 from sendsprint.agents.security_reviewer import SecurityReviewer
-from sendsprint.agents.sprint_importer import SprintImporter, _sprint_dir_name
+from sendsprint.agents.sprint_importer import SprintImporter, _slugify, _sprint_dir_name
 from sendsprint.agents.test_runner import TestRunner
 from sendsprint.agents.worktree import WorktreeError, WorktreeManager
 from sendsprint.architecture import ArchitectureMapper, build_architecture
 from sendsprint.models import ArchitectureReport, Sprint
+from sendsprint.models.sprint import SprintItem
 from sendsprint.models.reports import RunReport, StepReport
 from sendsprint.models.workspace import RepoConfig, ScopeConfig, WorkspaceConfig
 from sendsprint.operators.base import BaseOperator
@@ -112,74 +113,95 @@ class SprintFlow:
             skip.message = "no repos resolved — steps 2-10 skipped"
             report.steps.append(skip)
 
-        for repo_cfg, rpath in repos:
-            fp = detect_tech(rpath)
-            branch_name = f"sendsprint/{fp.primary_tech or 'dev'}"
+        if not sprint.items and repos:
+            skip = StepReport(step=2, name="no-tasks", status="skipped")
+            skip.message = "sprint has 0 items after scope/status filter — steps 2-10 skipped"
+            report.steps.append(skip)
 
-            # --- Step 2: Architecture ---
-            arch_report, build_result = self._step2_architecture(rpath, fp, report)
-            if first_arch is None:
-                first_arch = arch_report
-            if build_result and build_result.created_files:
-                notes.append(
-                    f"[{rpath.name}] architecture docs created: "
-                    + ", ".join(Path(f).name for f in build_result.created_files)
+        for item in sprint.items:
+            for repo_cfg, rpath in repos:
+                fp = detect_tech(rpath)
+                branch_name = self._branch_for_task(item, fp)
+                task_sprint = sprint.model_copy(update={"items": [item]})
+
+                # --- Step 2: Architecture (per repo, once per task — cheap, idempotent) ---
+                arch_report, build_result = self._step2_architecture(rpath, fp, report)
+                if first_arch is None:
+                    first_arch = arch_report
+                if build_result and build_result.created_files:
+                    notes.append(
+                        f"[{rpath.name}] architecture docs created: "
+                        + ", ".join(Path(f).name for f in build_result.created_files)
+                    )
+
+                # --- Step 3: Dev (install + build) on isolated task worktree ---
+                wt_path = self._try_worktree(rpath, branch_name)
+                work_dir = wt_path or rpath
+                dev = DevAgent(work_dir, fp)
+                self._step3_dev(dev, report, repo_cfg)
+
+                # --- Step 4: Lint ---
+                lint_cmd = repo_cfg.lint_command if repo_cfg else None
+                linter = LintRunner(work_dir, fp, custom_command=lint_cmd)
+                lint_report = self._step4_lint(linter, report)
+
+                # --- Step 5: Tests ---
+                runner = TestRunner(
+                    work_dir,
+                    fp,
+                    custom_unit_cmd=repo_cfg.test_command if repo_cfg else None,
+                    custom_e2e_cmd=repo_cfg.e2e_command if repo_cfg else None,
+                )
+                test_reports = self._step5_tests(runner, report)
+
+                # --- Step 6: Security (flag only) ---
+                sec = SecurityReviewer(work_dir, fp)
+                sec_report = self._step6_security(sec, report)
+
+                # --- Step 7: Fix loop ---
+                self._step7_fix_loop(
+                    dev,
+                    linter,
+                    runner,
+                    sec,
+                    lint_report,
+                    test_reports,
+                    sec_report,
+                    report,
                 )
 
-            # --- Step 3: Dev (install + build) ---
-            wt_path = self._try_worktree(rpath, branch_name)
-            work_dir = wt_path or rpath
-            dev = DevAgent(work_dir, fp)
-            self._step3_dev(dev, report, repo_cfg)
+                # --- Step 8: Commit ---
+                self._step8_commit(work_dir, task_sprint, report, item=item)
 
-            # --- Step 4: Lint ---
-            lint_cmd = repo_cfg.lint_command if repo_cfg else None
-            linter = LintRunner(work_dir, fp, custom_command=lint_cmd)
-            lint_report = self._step4_lint(linter, report)
+                # --- Step 8b: Push branch ---
+                self._push_branch(work_dir, branch_name)
 
-            # --- Step 5: Tests ---
-            runner = TestRunner(
-                work_dir,
-                fp,
-                custom_unit_cmd=repo_cfg.test_command if repo_cfg else None,
-                custom_e2e_cmd=repo_cfg.e2e_command if repo_cfg else None,
-            )
-            test_reports = self._step5_tests(runner, report)
+                # --- Step 9: Create PR (per task, per repo) ---
+                target = (repo_cfg.pr_target_branch if repo_cfg else None) or (
+                    self.workspace.default_base_branch if self.workspace else "main"
+                )
+                provider = self.workspace.pr_provider if self.workspace else "github"
+                reviewers = self.workspace.pr_reviewers if self.workspace else []
+                pr_report = self._step9_create_pr(
+                    work_dir,
+                    branch_name,
+                    target,
+                    provider,
+                    reviewers,
+                    task_sprint,
+                    report,
+                    item=item,
+                )
 
-            # --- Step 6: Security (flag only) ---
-            sec = SecurityReviewer(work_dir, fp)
-            sec_report = self._step6_security(sec, report)
-
-            # --- Step 7: Fix loop ---
-            self._step7_fix_loop(
-                dev,
-                linter,
-                runner,
-                sec,
-                lint_report,
-                test_reports,
-                sec_report,
-                report,
-            )
-
-            # --- Step 8: Commit ---
-            self._step8_commit(work_dir, sprint, report)
-
-            # --- Step 8b: Push branch ---
-            self._push_branch(work_dir, branch_name)
-
-            # --- Step 9: Create PR ---
-            target = (repo_cfg.pr_target_branch if repo_cfg else None) or (
-                self.workspace.default_base_branch if self.workspace else "main"
-            )
-            provider = self.workspace.pr_provider if self.workspace else "github"
-            reviewers = self.workspace.pr_reviewers if self.workspace else []
-            pr_report = self._step9_create_pr(
-                work_dir, branch_name, target, provider, reviewers, sprint, report
-            )
-
-            # --- Step 10: PR review + delivered ---
-            self._step10_review_and_deliver(work_dir, branch_name, target, rpath, pr_report, report)
+                # --- Step 10: PR review + delivered ---
+                self._step10_review_and_deliver(
+                    work_dir,
+                    branch_name,
+                    target,
+                    rpath,
+                    pr_report,
+                    report,
+                )
 
         report.finished_at = datetime.now(tz=UTC)
         report.failed = any(s.status == "failed" for s in report.steps)
@@ -328,7 +350,13 @@ class SprintFlow:
             loop_step.finished_at = datetime.now(tz=UTC)
             report.steps.append(loop_step)
 
-    def _step8_commit(self, work_dir: Path, sprint: Sprint, report: RunReport) -> StepReport:
+    def _step8_commit(
+        self,
+        work_dir: Path,
+        sprint: Sprint,
+        report: RunReport,
+        item: SprintItem | None = None,
+    ) -> StepReport:
         step = StepReport(step=8, name="commit", repo=str(work_dir), status="running")
         step.started_at = datetime.now(tz=UTC)
         try:
@@ -350,7 +378,10 @@ class SprintFlow:
                 step.status = "skipped"
                 step.message = "no changes to commit"
             else:
-                msg = f"[SendSprint] {sprint.name} — automated delivery"
+                if item:
+                    msg = f"feat({item.key}): {item.title} [SendSprint {sprint.name}]"
+                else:
+                    msg = f"[SendSprint] {sprint.name} — automated delivery"
                 subprocess.run(
                     ["git", "commit", "-m", msg],
                     cwd=str(work_dir),
@@ -380,6 +411,7 @@ class SprintFlow:
         reviewers: list[str],
         sprint: Sprint,
         report: RunReport,
+        item: SprintItem | None = None,
     ) -> StepReport:
         creator = PrCreator(
             work_dir,
@@ -387,7 +419,10 @@ class SprintFlow:
             target_branch=target,
             reviewers=reviewers,
         )
-        title = f"[SendSprint] {sprint.name} — {work_dir.name}"
+        if item:
+            title = f"[{item.key}] {item.title} — {work_dir.name}"
+        else:
+            title = f"[SendSprint] {sprint.name} — {work_dir.name}"
         sprint_slug = _sprint_dir_name(sprint)
         body = PrBodyBuilder(work_dir).build(
             sprint=sprint,
@@ -441,6 +476,12 @@ class SprintFlow:
         if repo_path:
             return [(None, Path(repo_path).resolve())]
         return []
+
+    def _branch_for_task(self, item: SprintItem, fp: TechFingerprint) -> str:
+        key = _slugify(item.key or item.id or "task", 40)
+        raw_title = (item.title or "").strip()
+        suffix = f"-{_slugify(raw_title, 30)}" if raw_title else ""
+        return f"sendsprint/{key}{suffix}"
 
     def _try_worktree(self, repo: Path, branch: str) -> Path | None:
         try:

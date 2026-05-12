@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-05-12
+
+### Added
+
+- **Agentic-starter detection** — `ArchitectureMapper` now checks for `AGENTS.md`, `.specs/architecture/DESIGN.md`, `.specs/product/VISION.md` markers. When found, `ArchitectureReport.has_agentic_starter=True` and `is_mapped` short-circuits true; SprintFlow skips re-generation and reuses existing specs.
+- **Status whitelist** — `ScopeConfig.allowed_statuses` filters items by case-insensitive status. Defaults to developable set: `new, active, to do, todo, open, in progress, doing, selected for development, backlog, ready`. Empty list = pass-through.
+- **Task-code selector** — `ScopeConfig.task_keys` (CLI: `--task PROJ-42 --task PROJ-7` or `--tasks PROJ-1,PROJ-2`) bypasses both mode and status filters; matches by `key` or `id`, case-insensitive.
+- **Branch-per-task delivery** — `SprintFlow.run()` now iterates `(item, repo)` pairs, generating one branch + worktree + commit + PR per task via `_branch_for_task(item, fp) -> sendsprint/<slug-key>-<slug-title>`. Commit message: `feat({key}): {title} [SendSprint {sprint}]`; PR title: `[{key}] {title} — {repo}`.
+- **Interactive picker** — `sendsprint sprint --pick` prompts `[a]ll / [m]ine / [c]ode` (chat-trigger UX); on `c` collects comma-separated task codes.
+- Tests: `tests/test_sprint_flow.py` (branch naming, 4 tests), `tests/test_scope.py` extended (status filter, task_keys precedence, build_scope defaults — 8 new tests), `tests/test_architecture_mapper.py` extended (agentic-starter detection — 3 new tests). Suite: 145 passing.
+
+### Changed
+
+- `apply_scope` precedence is now explicit: (1) `task_keys` override mode + status, (2) `mode='mine'` filters by assignee then status whitelist, (3) `mode='all'` applies status whitelist only. Always returns a new `Sprint` (Pydantic `model_copy`).
+- `build_scope(...)` accepts `allowed_statuses` and `task_keys` kwargs; trims and drops empties.
+- `SprintFlow._step8_commit` and `_step9_create_pr` accept an `item: SprintItem | None` kwarg, formatting per-task commit and PR titles when supplied.
+- `SprintFlow.run()` adds an empty-sprint guard: if scope/status filter leaves zero items, steps 2–10 are skipped with a `no-tasks` StepReport entry.
+
 ## [0.5.0] - 2026-05-12
 
 ### Added
