@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] - 2026-05-15
+
+### Added
+
+- Generated Remotion music bed and workflow sound effects for explainer, before/after, and run-loop MP4s.
+- Re-rendered all preview MP4s with audio tracks and documented the audio build flow.
+
 ## [0.10.1] - 2026-05-15
 
 ### Added

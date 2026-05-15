@@ -6,6 +6,7 @@ escuro com partículas leves, terminais animados, ícones SVG, transições por
 spring/fade.
 
 > Stack: Remotion 4 + React 19 + TypeScript. 1920×1080 @ 30fps. Saída MP4 (h264) ou WebM.
+> Os MP4s em `preview/` incluem trilha musical gerada localmente e efeitos sonoros para transição, erro, correção e sucesso.
 
 ## Previews
 
@@ -66,9 +67,12 @@ o run loop tem timeline própria em [`src/scenes/RunLoopScene.tsx`](./src/scenes
 ```bash
 cd video
 npm install
+npm run audio             # gera trilha e efeitos em public/audio/
 npm start                 # abre o Remotion Studio (preview interativo)
 npm run build             # renderiza out/sendsprint-explainer.mp4
 npm run build:before-after # renderiza before/after pt + en
+npm run build:runloop     # renderiza o fluxo de trabalho pt + en
+npm run build:preview     # regenera áudio + MP4s de preview pt/en
 npm run build:webm        # renderiza out/sendsprint-explainer.webm (vp9)
 npm run still             # exporta um frame estático em out/poster.png
 npm run still:before-after # exporta posters before/after pt + en

@@ -2,6 +2,7 @@ import React from "react";
 import { AbsoluteFill } from "remotion";
 import { RunLoopScene } from "./scenes/RunLoopScene";
 import { LangContext, type Lang } from "./i18n";
+import { Soundtrack, runLoopCues } from "./Soundtrack";
 
 type Props = { lang?: Lang };
 
@@ -13,6 +14,7 @@ type Props = { lang?: Lang };
 export const RunLoopVideo: React.FC<Props> = ({ lang = "pt" }) => (
   <LangContext.Provider value={lang}>
     <AbsoluteFill style={{ background: "#03050d" }}>
+      <Soundtrack cues={runLoopCues} musicVolume={0.12} />
       <RunLoopScene />
     </AbsoluteFill>
   </LangContext.Provider>

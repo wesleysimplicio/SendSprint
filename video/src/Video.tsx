@@ -9,6 +9,7 @@ import { SetupScene } from "./scenes/SetupScene";
 import { OutroScene } from "./scenes/OutroScene";
 import { SCENES } from "./theme";
 import { LangContext, type Lang } from "./i18n";
+import { Soundtrack, explainerCues } from "./Soundtrack";
 
 type Props = { lang?: Lang };
 
@@ -16,6 +17,7 @@ export const SendSprintExplainer: React.FC<Props> = ({ lang = "pt" }) => {
   return (
     <LangContext.Provider value={lang}>
       <AbsoluteFill style={{ background: "#03050d" }}>
+        <Soundtrack cues={explainerCues} musicVolume={0.11} />
         <Sequence from={SCENES.intro.start} durationInFrames={SCENES.intro.dur}>
           <IntroScene />
         </Sequence>

@@ -8,6 +8,7 @@ import {
   useCurrentFrame,
 } from "remotion";
 import { LangContext, type Lang } from "./i18n";
+import { Soundtrack, beforeAfterCues } from "./Soundtrack";
 import { FPS, theme } from "./theme";
 
 export const BEFORE_AFTER_DURATION = 1410;
@@ -100,6 +101,7 @@ export const SendSprintBeforeAfter: React.FC<Props> = ({ lang = "pt" }) => {
   return (
     <LangContext.Provider value={lang}>
       <AbsoluteFill style={{ background: "#020617", color: theme.text, fontFamily: theme.fontSans }}>
+        <Soundtrack cues={beforeAfterCues} musicVolume={0.12} />
         <Glow />
         <Sequence from={0} durationInFrames={180}>
           <Hero copy={COPY[lang]} />
@@ -450,4 +452,3 @@ const Kicker: React.FC<React.PropsWithChildren> = ({ children }) => (
     {children}
   </div>
 );
-
