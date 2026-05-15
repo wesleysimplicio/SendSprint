@@ -1,6 +1,11 @@
 """Tests for User Story decomposition into front/back tasks."""
 
-from sendsprint.agents.story_task_planner import delivery_items, item_matches_repo, plan_story_tasks
+from sendsprint.agents.story_task_planner import (
+    delivery_items,
+    item_matches_repo,
+    normalize_azure_backlog_hierarchy,
+    plan_story_tasks,
+)
 from sendsprint.models.sprint import Sprint, SprintItem
 from sendsprint.models.workspace import RepoConfig, WorkspaceConfig
 
@@ -52,6 +57,53 @@ def test_plan_story_tasks_skips_story_when_child_task_exists() -> None:
 
     assert report.status == "skipped"
     assert sprint.items == [_story(), child]
+
+
+def test_plan_story_tasks_normalizes_azure_issue_task_hierarchy() -> None:
+    issue = SprintItem(
+        id="179778",
+        key="179778",
+        type="Issue",
+        title="Corrigir divergencia de backlog",
+        status="New",
+        source_url="https://dev.azure.com/org/project/_workitems/edit/179778",
+    )
+    child = SprintItem(
+        id="179822",
+        key="179822",
+        type="Task",
+        title="Front task",
+        status="New",
+        parent_key="179778",
+    )
+
+    sprint, report = plan_story_tasks(
+        Sprint(id="Sprint 29", name="Sprint 29", source="azuredevops", items=[issue, child])
+    )
+
+    normalized = next(item for item in sprint.items if item.key == "179822")
+    assert normalized.parent_key is None
+    assert normalized.links[0].type == "Related"
+    assert normalized.links[0].target_key == "179778"
+    assert "normalized 1 invalid Azure hierarchy link(s)" in (report.message or "")
+
+
+def test_normalize_azure_backlog_hierarchy_keeps_story_task_parent() -> None:
+    child = SprintItem(
+        id="1",
+        key="1",
+        type="Task",
+        title="Front task",
+        status="New",
+        parent_key="179500",
+    )
+
+    sprint, normalized = normalize_azure_backlog_hierarchy(
+        Sprint(id="Sprint 29", name="Sprint 29", source="azuredevops", items=[_story(), child])
+    )
+
+    assert normalized == 0
+    assert sprint.items[1].parent_key == "179500"
 
 
 def test_delivery_items_skips_parent_story_with_child_tasks() -> None:

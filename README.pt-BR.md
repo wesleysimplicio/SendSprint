@@ -50,7 +50,7 @@ Veja [`web/README.md`](./web/README.md) pro passo-a-passo e
 
 Funciona em **13 ferramentas de IA pra código**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
-> **Status:** v0.7.0 — UX one-command via chat (`sendsprint sprint`). 13 manifestos de IDE. Cache de credencial em OS-keyring. Auto-scaffold `.specs/` com sync do `agentic-starter` mais recente. Fluxo completo de 10 passos. PRs miram `develop` por padrão e podem ser configurados por workspace/repo. Publicação PyPI automatizada em tags de release.
+> **Status:** v0.8.1 — UX one-command via chat (`sendsprint sprint`). 13 manifestos de IDE. Cache de credencial em OS-keyring. Instalador MCP do Azure DevOps. Auto-scaffold `.specs/` com sync do `agentic-starter` mais recente. Fluxo completo de 10 passos. Branches usam `feature/{number}-{title}` e PRs miram `develop` por padrão; ambos podem ser configurados por workspace/repo. Checagens de hierarquia do backlog Azure evitam links pai Issue -> Task inválidos. Publicação PyPI automatizada em tags de release.
 
 ---
 

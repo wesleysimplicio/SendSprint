@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.1] - 2026-05-15
+
+### Fixed
+
+- Azure DevOps sprint planning now normalizes invalid backlog hierarchy links, converting Task/Subtask parents that point to non-delivery backlog types such as Issue into Related links before delivery planning.
+
 ## [0.8.0] - 2026-05-15
 
 ### Added

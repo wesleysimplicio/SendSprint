@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sendsprint.models import Sprint, SprintItem
+from sendsprint.models import Link, Sprint, SprintItem
 from sendsprint.models.reports import StepReport
 from sendsprint.models.workspace import WorkspaceConfig
 
 FRONT_REPO_ROLES = {"front", "mobile"}
 BACK_REPO_ROLES = {"api", "back", "lib"}
+ADO_TASK_PARENT_TYPES = {"Story", "Bug"}
 
 
 def plan_story_tasks(
@@ -29,6 +30,7 @@ def plan_story_tasks(
         started_at=datetime.now(UTC),
     )
 
+    sprint, normalized = normalize_azure_backlog_hierarchy(sprint)
     child_parent_keys = {
         item.parent_key
         for item in sprint.items
@@ -53,8 +55,53 @@ def plan_story_tasks(
         if created
         else "no stories required synthetic front/back tasks"
     )
+    if normalized:
+        step.message = f"{step.message}; normalized {normalized} invalid Azure hierarchy link(s)"
     step.finished_at = datetime.now(UTC)
     return sprint.model_copy(update={"items": planned}), step
+
+
+def normalize_azure_backlog_hierarchy(sprint: Sprint) -> tuple[Sprint, int]:
+    """Convert invalid Azure Task parent links into Related links.
+
+    Azure DevOps backlogs can reject same-category hierarchy links, for example
+    Issue -> Task in the Agile process. Tasks are kept deliverable but no longer
+    treated as children when the local parent item type is not allowed.
+    """
+    if sprint.source != "azuredevops":
+        return sprint, 0
+
+    by_key = {item.key: item for item in sprint.items}
+    by_id = {item.id: item for item in sprint.items}
+    items: list[SprintItem] = []
+    normalized = 0
+
+    for item in sprint.items:
+        if item.type not in {"Task", "Subtask"} or not item.parent_key:
+            items.append(item)
+            continue
+
+        parent = by_key.get(item.parent_key) or by_id.get(item.parent_key)
+        if parent is None or parent.type in ADO_TASK_PARENT_TYPES:
+            items.append(item)
+            continue
+
+        related_key = parent.key or parent.id
+        links = list(item.links)
+        if not any(link.type == "Related" and link.target_key == related_key for link in links):
+            links.append(
+                Link(
+                    type="Related",
+                    target_key=related_key,
+                    target_url=parent.source_url,
+                )
+            )
+        items.append(item.model_copy(update={"parent_key": None, "links": links}))
+        normalized += 1
+
+    if not normalized:
+        return sprint, 0
+    return sprint.model_copy(update={"items": items}), normalized
 
 
 def item_matches_repo(item: SprintItem, repo_role: str | None) -> bool:

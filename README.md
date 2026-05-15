@@ -55,7 +55,7 @@ See [`web/README.md`](./web/README.md) for the full walkthrough and
 
 Works across **13 AI coding tools**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
-> **Status:** v0.8.0 — Chat-triggered one-command UX (`sendsprint sprint`). 13 IDE manifests. OS-keyring credential cache. Azure DevOps MCP installer. Auto-scaffold `.specs` plus latest `agentic-starter` sync. Full 10-step flow. Branches default to `feature/{number}-{title}` and PRs target `develop`; both can be configured. PyPI publishing is automated on release tags.
+> **Status:** v0.8.1 — Chat-triggered one-command UX (`sendsprint sprint`). 13 IDE manifests. OS-keyring credential cache. Azure DevOps MCP installer. Auto-scaffold `.specs` plus latest `agentic-starter` sync. Full 10-step flow. Branches default to `feature/{number}-{title}` and PRs target `develop`; both can be configured. Azure backlog hierarchy checks prevent invalid Issue -> Task parent links. PyPI publishing is automated on release tags.
 
 ---
 
