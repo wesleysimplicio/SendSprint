@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock
 
 from sendsprint.flow.sprint_flow import SprintFlow
-from sendsprint.models.sprint import SprintItem
+from sendsprint.models.sprint import Sprint, SprintItem
 from sendsprint.models.workspace import RepoConfig, WorkspaceConfig
+from sendsprint.operators.base import BaseOperator
 from sendsprint.tech import TechFingerprint
 
 
@@ -57,3 +59,36 @@ def test_branch_for_task_uses_repo_template_over_workspace_template() -> None:
     repo = RepoConfig(name="api", path="api", branch_name_template="hotfix/{number}-{title}")
     branch = _flow(ws)._branch_for_task(_item("PROJ-42", "Add Login Flow"), _fp(), repo)
     assert branch == "hotfix/42-add-login-flow"
+
+
+class FakeOperator(BaseOperator):
+    source = "jira"
+
+    def _api_available(self) -> bool:
+        return True
+
+    def _read_via_mcp(self, **kwargs: Any) -> Sprint:
+        raise AssertionError("mcp should not be used")
+
+    def _read_via_api(self, **kwargs: Any) -> Sprint:
+        return Sprint(
+            id="42",
+            name="Sprint 42",
+            source="jira",
+            items=[_item("PROJ-42", "Criar tela de login")],
+        )
+
+    def _read_via_playwright(self, **kwargs: Any) -> Sprint:
+        raise AssertionError("playwright should not be used")
+
+
+def test_dry_run_builds_plan_without_importing_specs(tmp_path) -> None:
+    flow = SprintFlow(operator=FakeOperator(transport="api"))
+
+    result = flow.run(sprint_id=42, repo_path=str(tmp_path), dry_run=True)
+
+    assert result.delivery_plan is not None
+    assert result.delivery_plan.deliveries[0].branch == "feature/42-criar-tela-de-login"
+    assert result.run_report is not None
+    assert result.run_report.summary == "1 planned delivery item(s), 0 low-confidence route(s)"
+    assert not (tmp_path / ".specs").exists()

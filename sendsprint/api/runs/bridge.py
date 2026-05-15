@@ -59,13 +59,31 @@ def _run_real(run_id: str, req: StartRunRequest) -> dict[str, Any]:
         op = AzureDevopsOperator(transport="auto")
 
     ws = load_workspace(req.workspace_path) if req.workspace_path else None
-    scope = build_scope(mode="mine") if req.mode == "mine" else None
+    scope = build_scope(
+        mode="mine" if req.mode == "mine" else "all",
+        task_keys=req.item_keys or None,
+    )
 
     flow = SprintFlow(operator=op, workspace=ws, scope=scope)
     events.publish_threadsafe(
         run_id, {"type": "step", "step": 1, "name": "read-sprint", "status": "running"}
     )
-    result = flow.run(sprint_id=req.sprint_id)
+    if req.provider == "jira":
+        result = flow.run(
+            sprint_id=req.sprint_id,
+            repo_path=req.repo_path,
+            dry_run=req.dry_run,
+            resume=req.resume,
+            run_id=run_id,
+        )
+    else:
+        result = flow.run(
+            iteration_path=req.sprint_id,
+            repo_path=req.repo_path,
+            dry_run=req.dry_run,
+            resume=req.resume,
+            run_id=run_id,
+        )
 
     report = result.run_report
     if report:
@@ -86,6 +104,14 @@ def _run_real(run_id: str, req: StartRunRequest) -> dict[str, Any]:
                 {"type": "log", "message": f"PR aberto: {pr.url}"},
             )
 
+    if result.delivery_plan:
+        events.publish_threadsafe(
+            run_id,
+            {
+                "type": "log",
+                "message": f"dry-run plan: {result.delivery_plan.summary()}",
+            },
+        )
     pr_url = report.prs[0].url if report and report.prs else None
     summary = result.run_report.summary if result.run_report else None
     return {

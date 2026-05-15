@@ -35,6 +35,9 @@ from sendsprint.models.reports import RunReport, StepReport
 from sendsprint.models.sprint import SprintItem
 from sendsprint.models.workspace import RepoConfig, ScopeConfig, WorkspaceConfig
 from sendsprint.operators.base import BaseOperator
+from sendsprint.planning import DeliveryPlan, build_delivery_plan
+from sendsprint.post_validation import validate_pr_step, validate_sprint_links
+from sendsprint.run_state import RunStateStore, delivery_key, stable_run_id
 from sendsprint.scope import apply_scope
 from sendsprint.tech import TechFingerprint, detect_tech
 from sendsprint.workspace import resolve_repo_path
@@ -75,6 +78,7 @@ class SprintFlowResult(BaseModel):
     repo_path: str | None = None
     notes: list[str] = Field(default_factory=list)
     run_report: RunReport | None = None
+    delivery_plan: DeliveryPlan | None = None
 
     def to_json(self, **kwargs: Any) -> str:
         return self.model_dump_json(indent=2, **kwargs)
@@ -112,6 +116,9 @@ class SprintFlow:
         sprint_id: str | int | None = None,
         iteration_path: str | None = None,
         repo_path: str | None = None,
+        dry_run: bool = False,
+        resume: bool = False,
+        run_id: str | None = None,
         **kwargs: Any,
     ) -> SprintFlowResult:
         report = RunReport(
@@ -131,13 +138,60 @@ class SprintFlow:
         sprint, planning_report = plan_story_tasks(sprint, self.workspace)
         report.steps.append(planning_report)
 
+        link_validation = validate_sprint_links(sprint)
+        report.steps.append(link_validation)
+
+        repos = self._resolve_repos(repo_path)
+        default_target = self.workspace.default_base_branch if self.workspace else "main"
+        plan = build_delivery_plan(
+            sprint,
+            repos,
+            branch_for_task=self._branch_for_task,
+            detect_fingerprint=detect_tech,
+            default_target_branch=default_target,
+        )
+
+        if dry_run:
+            step = StepReport(step=0, name="dry-run-plan", status="ok")
+            step.message = plan.summary()
+            report.steps.append(step)
+            report.finished_at = datetime.now(tz=UTC)
+            report.failed = False
+            report.summary = plan.summary()
+            return SprintFlowResult(
+                sprint=sprint,
+                repo_path=repo_path,
+                notes=plan.warnings,
+                run_report=report,
+                delivery_plan=plan,
+            )
+
         # --- Step 1.5: Import sprint items as agentic-starter task specs ---
         self._step1_5_import_specs(sprint, repo_path, report)
 
         notes: list[str] = []
         first_arch: ArchitectureReport | None = None
 
-        repos = self._resolve_repos(repo_path)
+        state_store = None
+        state = None
+        if resume or run_id:
+            state_root = self._state_root(repo_path)
+            state_store = RunStateStore(state_root)
+            identifier = sprint_id if sprint_id is not None else iteration_path
+            state_scope = repo_path or (self.workspace.name if self.workspace else "")
+            resolved_run_id = run_id or stable_run_id(
+                self.operator.source,
+                identifier,
+                self.scope.mode,
+                ",".join(self.scope.task_keys or []),
+                state_scope,
+            )
+            state = state_store.load_or_create(
+                resolved_run_id,
+                source=self.operator.source,
+                sprint_id=str(sprint.id),
+            )
+            state_store.save(state)
 
         if not repos:
             skip = StepReport(step=2, name="no-repos", status="skipped")
@@ -157,6 +211,17 @@ class SprintFlow:
                     continue
                 fp = detect_tech(rpath)
                 branch_name = self._branch_for_task(item, fp, repo_cfg)
+                dkey = delivery_key(item.key or item.id, repo_cfg.name if repo_cfg else rpath.name)
+                if state:
+                    state.mark_planned(dkey)
+                    assert state_store is not None
+                    state_store.save(state)
+                    if state.is_completed(dkey):
+                        skip = StepReport(step=0, name="resume-skip", repo=str(rpath))
+                        skip.status = "skipped"
+                        skip.message = f"{dkey} already completed in run {state.run_id}"
+                        report.steps.append(skip)
+                        continue
                 task_sprint = sprint.model_copy(update={"items": [item]})
 
                 # --- Step 2: Architecture (per repo, once per task — cheap, idempotent) ---
@@ -227,6 +292,8 @@ class SprintFlow:
                     report,
                     item=item,
                 )
+                pr_validation = validate_pr_step(pr_report)
+                report.steps.append(pr_validation)
 
                 # --- Step 10: PR review + delivered ---
                 self._step10_review_and_deliver(
@@ -237,6 +304,13 @@ class SprintFlow:
                     pr_report,
                     report,
                 )
+                if state:
+                    if pr_report.status == "ok" and pr_validation.status == "ok":
+                        state.mark_completed(dkey)
+                    else:
+                        state.mark_failed(dkey, pr_report.message or "PR validation failed")
+                    assert state_store is not None
+                    state_store.save(state)
 
         report.finished_at = datetime.now(tz=UTC)
         report.failed = any(s.status == "failed" for s in report.steps)
@@ -248,6 +322,7 @@ class SprintFlow:
             repo_path=repo_path,
             notes=notes,
             run_report=report,
+            delivery_plan=plan,
         )
 
     # ── Step implementations ──────────────────────────────────────────
@@ -511,6 +586,13 @@ class SprintFlow:
         if repo_path:
             return [(None, Path(repo_path).resolve())]
         return []
+
+    def _state_root(self, repo_path: str | None) -> Path:
+        if self.workspace and self.workspace.root_path:
+            return Path(self.workspace.root_path)
+        if repo_path:
+            return Path(repo_path).resolve()
+        return Path.cwd()
 
     def _branch_for_task(
         self,

@@ -1,0 +1,126 @@
+"""Delivery planning helpers for dry-run, routing, and confidence scoring."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from sendsprint.agents.story_task_planner import (
+    BACK_REPO_ROLES,
+    FRONT_REPO_ROLES,
+    delivery_items,
+    infer_item_scopes,
+    item_matches_repo,
+)
+from sendsprint.models import Sprint
+from sendsprint.models.sprint import SprintItem
+from sendsprint.models.workspace import RepoConfig
+from sendsprint.tech import TechFingerprint
+
+Confidence = Literal["high", "medium", "low"]
+
+
+class PlannedDelivery(BaseModel):
+    """One item/repo pair SendSprint intends to deliver."""
+
+    item_key: str
+    item_type: str
+    title: str
+    repo: str
+    repo_role: str | None = None
+    branch: str
+    target_branch: str
+    confidence: Confidence
+    reason: str
+    relationship: str = "none"
+
+
+class DeliveryPlan(BaseModel):
+    """Structured dry-run output used by CLI and reports."""
+
+    source: str
+    sprint_id: str
+    sprint_name: str
+    deliveries: list[PlannedDelivery] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+    @property
+    def low_confidence_count(self) -> int:
+        return sum(1 for delivery in self.deliveries if delivery.confidence == "low")
+
+    def summary(self) -> str:
+        return (
+            f"{len(self.deliveries)} planned delivery item(s), "
+            f"{self.low_confidence_count} low-confidence route(s)"
+        )
+
+
+def build_delivery_plan(
+    sprint: Sprint,
+    repos: list[tuple[RepoConfig | None, Path]],
+    *,
+    branch_for_task: Callable[[SprintItem, TechFingerprint, RepoConfig | None], str],
+    detect_fingerprint: Callable[[Path], TechFingerprint],
+    default_target_branch: str,
+) -> DeliveryPlan:
+    """Build a read-only plan for item/repo delivery."""
+    plan = DeliveryPlan(source=sprint.source, sprint_id=sprint.id, sprint_name=sprint.name)
+    for item in delivery_items(sprint):
+        matched = False
+        for repo_cfg, repo_path in repos:
+            repo_role = repo_cfg.role if repo_cfg else None
+            if not item_matches_repo(item, repo_role):
+                continue
+            matched = True
+            fp = detect_fingerprint(repo_path)
+            branch = branch_for_task(item, fp, repo_cfg)
+            target = (
+                repo_cfg.pr_target_branch
+                if repo_cfg and repo_cfg.pr_target_branch
+                else default_target_branch
+            )
+            confidence, reason = confidence_for_item(item, repo_role, fp)
+            relationship = "parent" if item.parent_key else "related" if item.links else "none"
+            plan.deliveries.append(
+                PlannedDelivery(
+                    item_key=item.key or item.id,
+                    item_type=item.type,
+                    title=item.title,
+                    repo=str(repo_path),
+                    repo_role=repo_role,
+                    branch=branch,
+                    target_branch=target,
+                    confidence=confidence,
+                    reason=reason,
+                    relationship=relationship,
+                )
+            )
+        if not matched:
+            plan.warnings.append(f"{item.key}: no compatible repository matched")
+    return plan
+
+
+def confidence_for_item(
+    item: SprintItem,
+    repo_role: str | None,
+    fp: TechFingerprint,
+) -> tuple[Confidence, str]:
+    """Score how safely an item can be routed to a repo."""
+    label_scopes = {label.split(":", 1)[1] for label in item.labels if label.startswith("scope:")}
+    if label_scopes:
+        return "high", f"explicit scope label: {', '.join(sorted(label_scopes))}"
+
+    inferred = infer_item_scopes(item)
+    if inferred:
+        return "medium", f"inferred from item text: {', '.join(sorted(inferred))}"
+
+    if repo_role in FRONT_REPO_ROLES | BACK_REPO_ROLES:
+        return "low", "repo role is known but item text has no clear front/back signal"
+
+    if fp.techs or fp.roles:
+        return "low", "repo tech detected but item route is not explicit"
+
+    return "low", "no scope, role, or tech signal"

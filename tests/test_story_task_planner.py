@@ -2,6 +2,7 @@
 
 from sendsprint.agents.story_task_planner import (
     delivery_items,
+    infer_item_scopes,
     item_matches_repo,
     normalize_azure_backlog_hierarchy,
     plan_story_tasks,
@@ -122,5 +123,29 @@ def test_item_matches_repo_routes_generated_tasks_by_scope() -> None:
     assert item_matches_repo(front, "front") is True
     assert item_matches_repo(front, None) is True
     assert item_matches_repo(front, "api") is False
+    assert item_matches_repo(back, "api") is True
+    assert item_matches_repo(back, "front") is False
+
+
+def test_item_matches_repo_infers_scope_from_text_when_label_missing() -> None:
+    front = SprintItem(
+        id="1",
+        key="1",
+        type="Task",
+        title="Ajustar tela de aprovacao",
+        status="New",
+    )
+    back = SprintItem(
+        id="2",
+        key="2",
+        type="Task",
+        title="Criar endpoint de politica",
+        status="New",
+    )
+
+    assert infer_item_scopes(front) == {"front"}
+    assert item_matches_repo(front, "front") is True
+    assert item_matches_repo(front, "api") is False
+    assert infer_item_scopes(back) == {"back"}
     assert item_matches_repo(back, "api") is True
     assert item_matches_repo(back, "front") is False

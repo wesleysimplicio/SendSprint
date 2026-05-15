@@ -28,7 +28,7 @@ def get_run(run_id: str) -> RunStatus | None:
 
 
 def start_run(req: StartRunRequest) -> RunStatus:
-    run_id = uuid.uuid4().hex[:12]
+    run_id = req.run_id or uuid.uuid4().hex[:12]
     status = RunStatus(
         run_id=run_id,
         state="queued",

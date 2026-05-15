@@ -28,6 +28,7 @@ from sendsprint.mcp import install_azure_devops_mcp
 from sendsprint.models import Sprint
 from sendsprint.operators import AzureDevopsOperator, JiraOperator
 from sendsprint.operators.base import Transport
+from sendsprint.preflight import PreflightReport, run_preflight
 from sendsprint.scaffolder import Scaffolder
 from sendsprint.scope import build_scope
 from sendsprint.tech import detect_tech
@@ -205,6 +206,17 @@ def run_flow(
         help="Comma-separated allowed statuses (default: new,active,todo,open,in progress,...)",
     ),
     output: Path | None = typer.Option(None, "-o", help="Write RunReport JSON"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Plan delivery without writing files, branches, commits, or PRs",
+    ),
+    resume: bool = typer.Option(
+        True,
+        "--resume/--no-resume",
+        help="Reuse run state to avoid duplicate delivery",
+    ),
+    run_id: str | None = typer.Option(None, "--run-id", help="Explicit run state id"),
 ) -> None:
     """Run the full 10-step SendSprint flow."""
     ws = load_workspace(workspace_file) if workspace_file else None
@@ -249,9 +261,15 @@ def run_flow(
         sprint_id=sprint_id,
         iteration_path=iteration_path,
         repo_path=str(repo_path) if repo_path else None,
+        dry_run=dry_run,
+        resume=resume,
+        run_id=run_id,
     )
 
     _render_sprint(result.sprint)
+    if result.delivery_plan:
+        console.rule("Delivery Plan")
+        _render_delivery_plan(result.delivery_plan)
     if result.architecture:
         console.rule("Architecture")
         console.print_json(data=json.loads(result.architecture.model_dump_json()))
@@ -268,6 +286,65 @@ def run_flow(
         )
         output.write_text(data)
         console.print(f"[green]wrote report to {output}[/green]")
+
+
+@app.command(name="preflight")
+def preflight_cmd(
+    provider: str = typer.Argument(..., help="jira | azuredevops"),
+    identifier: str | None = typer.Argument(None, help="sprint id or iteration path"),
+    workspace_file: Path | None = typer.Option(
+        None, "--workspace", "-w", help="workspace.yaml path"
+    ),
+    repo_path: Path | None = typer.Option(None, "--repo", "-r", exists=True, file_okay=False),
+    transport: str = typer.Option("auto"),
+    scope_mode: str = typer.Option("all", "--scope", help="all | mine"),
+    task: list[str] = typer.Option(None, "--task", help="Process only this task key (repeatable)"),
+    tasks: str | None = typer.Option(None, "--tasks", help="Comma-separated task keys"),
+    status: str | None = typer.Option(None, "--status", help="Comma-separated allowed statuses"),
+    output: Path | None = typer.Option(None, "-o", help="Write preflight JSON"),
+) -> None:
+    """Check credentials, transport, repos, sprint, and link safety before delivery."""
+    ws = load_workspace(workspace_file) if workspace_file else None
+    task_keys = _collect_task_keys(task, tasks)
+    allowed = _parse_csv(status)
+
+    if provider == "jira":
+        operator: JiraOperator | AzureDevopsOperator = JiraOperator(transport=transport)  # type: ignore[arg-type]
+        user_info = operator.current_user()
+        scope = build_scope(
+            mode=scope_mode,
+            user_email=user_info.get("emailAddress"),
+            user_account_id=user_info.get("accountId"),
+            allowed_statuses=allowed,
+            task_keys=task_keys,
+        )
+    elif provider == "azuredevops":
+        operator = AzureDevopsOperator(transport=transport)  # type: ignore[arg-type]
+        user_info = operator.current_user()
+        scope = build_scope(
+            mode=scope_mode,
+            user_email=user_info.get("emailAddress"),
+            user_descriptor=user_info.get("descriptor"),
+            user_display_name=user_info.get("displayName"),
+            allowed_statuses=allowed,
+            task_keys=task_keys,
+        )
+    else:
+        raise typer.BadParameter("provider must be 'jira' or 'azuredevops'")
+
+    report = run_preflight(
+        operator,
+        identifier=identifier,
+        workspace=ws,
+        repo_path=repo_path,
+        scope=scope,
+    )
+    _render_preflight(report)
+    if output:
+        output.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        console.print(f"[green]wrote preflight to {output}[/green]")
+    if not report.ok:
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -418,6 +495,17 @@ def sprint(
     status: str | None = typer.Option(None, "--status", help="Comma-separated allowed statuses"),
     pick: bool = typer.Option(False, "--pick", help="Interactive picker: [a]ll / [m]ine / [c]ode"),
     output: Path | None = typer.Option(None, "-o"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Plan delivery without writing files, branches, commits, or PRs",
+    ),
+    resume: bool = typer.Option(
+        True,
+        "--resume/--no-resume",
+        help="Reuse run state to avoid duplicate delivery",
+    ),
+    run_id: str | None = typer.Option(None, "--run-id", help="Explicit run state id"),
 ) -> None:
     """One-shot — runs the full 10-step flow with credentials and defaults from profile.
 
@@ -503,9 +591,15 @@ def sprint(
         sprint_id=sprint_id,
         iteration_path=iteration_path,
         repo_path=str(repo) if repo else None,
+        dry_run=dry_run,
+        resume=resume,
+        run_id=run_id,
     )
 
     _render_sprint(result.sprint)
+    if result.delivery_plan:
+        console.rule("Delivery Plan")
+        _render_delivery_plan(result.delivery_plan)
     if result.architecture:
         console.rule("Architecture")
         console.print_json(data=json.loads(result.architecture.model_dump_json()))
@@ -557,6 +651,41 @@ def _render_run_report(report) -> None:
     if report.prs:
         console.print(f"[bold]PRs:[/bold] {', '.join(p.url or str(p.number) for p in report.prs)}")
     console.print(f"[bold]Summary:[/bold] {report.summary}")
+
+
+def _render_delivery_plan(plan) -> None:
+    table = Table(show_header=True, header_style="bold")
+    for col in ("Item", "Repo", "Branch", "Target", "Confidence", "Reason"):
+        table.add_column(col)
+    for delivery in plan.deliveries:
+        style = {"high": "green", "medium": "yellow", "low": "red"}.get(
+            delivery.confidence, ""
+        )
+        table.add_row(
+            delivery.item_key,
+            Path(delivery.repo).name,
+            delivery.branch,
+            delivery.target_branch,
+            f"[{style}]{delivery.confidence}[/{style}]",
+            delivery.reason[:60],
+        )
+    console.print(table)
+    if plan.warnings:
+        for warning in plan.warnings:
+            console.print(f"[yellow]warning:[/yellow] {warning}")
+    console.print(f"[bold]Plan:[/bold] {plan.summary()}")
+
+
+def _render_preflight(report: PreflightReport) -> None:
+    console.rule(f"Preflight {report.provider}")
+    table = Table(show_header=True, header_style="bold")
+    for col in ("Check", "Status", "Message"):
+        table.add_column(col)
+    for check in report.checks:
+        style = {"ok": "green", "warn": "yellow", "failed": "red"}[check.status]
+        table.add_row(check.name, f"[{style}]{check.status}[/{style}]", check.message[:100])
+    console.print(table)
+    console.print(f"[bold]Result:[/bold] {'ok' if report.ok else 'failed'}")
 
 
 def _parse_csv(value: str | None) -> list[str] | None:

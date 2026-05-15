@@ -50,7 +50,7 @@ Veja [`web/README.md`](./web/README.md) pro passo-a-passo e
 
 Funciona em **13 ferramentas de IA pra código**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
-> **Status:** v0.8.2 — UX one-command via chat (`sendsprint sprint`). 13 manifestos de IDE. Cache de credencial em OS-keyring. Instalador MCP do Azure DevOps. Auto-scaffold `.specs/` com sync do `agentic-starter` mais recente. Fluxo completo de 10 passos. Branches usam `feature/{number}-{title}` e PRs miram `develop` por padrão; ambos podem ser configurados por workspace/repo. Checagens de hierarquia do backlog Azure evitam links pai Issue -> Task inválidos. Guia core de Jira/Azure DevOps incluso para regras estáveis do agente. Publicação PyPI automatizada em tags de release.
+> **Status:** v0.9.0 — UX one-command via chat (`sendsprint sprint`). 13 manifestos de IDE. Cache de credencial em OS-keyring. Instalador MCP do Azure DevOps. Auto-scaffold `.specs/` com sync do `agentic-starter` mais recente. Fluxo completo de 10 passos. Preflight, dry-run, estado resumível, roteamento com confiança e validação pós-PR inclusos. Branches usam `feature/{number}-{title}` e PRs miram `develop` por padrão; ambos podem ser configurados por workspace/repo. Checagens de hierarquia do backlog Azure evitam links pai Issue -> Task inválidos. Guia core de Jira/Azure DevOps incluso para regras estáveis do agente. Publicação PyPI automatizada em tags de release.
 
 ---
 
@@ -103,6 +103,15 @@ sendsprint run jira 42 --workspace workspace.yaml --scope mine -o report.json
 
 # Fluxo completo contra Azure DevOps
 sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+
+# Validar ambiente/sprint antes de entregar
+sendsprint preflight azuredevops "Team\\Sprint 12" --workspace workspace.yaml
+
+# Planejar branches/repos/PRs sem gravar arquivos nem abrir PR
+sendsprint run azuredevops "Team\\Sprint 12" --workspace workspace.yaml --dry-run
+
+# Retomar uma execucao de forma idempotente
+sendsprint run azuredevops "Team\\Sprint 12" --workspace workspace.yaml --run-id sprint-12
 
 # Detectar tech stack
 sendsprint detect-tech ./repo

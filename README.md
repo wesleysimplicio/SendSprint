@@ -55,7 +55,7 @@ See [`web/README.md`](./web/README.md) for the full walkthrough and
 
 Works across **13 AI coding tools**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
-> **Status:** v0.8.2 — Chat-triggered one-command UX (`sendsprint sprint`). 13 IDE manifests. OS-keyring credential cache. Azure DevOps MCP installer. Auto-scaffold `.specs` plus latest `agentic-starter` sync. Full 10-step flow. Branches default to `feature/{number}-{title}` and PRs target `develop`; both can be configured. Azure backlog hierarchy checks prevent invalid Issue -> Task parent links. Jira/Azure DevOps core guide is bundled for stable agent rules. PyPI publishing is automated on release tags.
+> **Status:** v0.9.0 — Chat-triggered one-command UX (`sendsprint sprint`). 13 IDE manifests. OS-keyring credential cache. Azure DevOps MCP installer. Auto-scaffold `.specs` plus latest `agentic-starter` sync. Full 10-step flow. Preflight, dry-run delivery plans, resumable run state, confidence routing, and post-PR validation are built in. Branches default to `feature/{number}-{title}` and PRs target `develop`; both can be configured. Azure backlog hierarchy checks prevent invalid Issue -> Task parent links. Jira/Azure DevOps core guide is bundled for stable agent rules. PyPI publishing is automated on release tags.
 
 ---
 
@@ -108,6 +108,15 @@ sendsprint run jira 42 --workspace workspace.yaml --scope mine -o report.json
 
 # Full flow against Azure DevOps
 sendsprint run azuredevops "Team\\Sprint 12" --repo ./repo
+
+# Validate environment/sprint safety before delivery
+sendsprint preflight azuredevops "Team\\Sprint 12" --workspace workspace.yaml
+
+# Plan branches/repos/PR targets without writing files or opening PRs
+sendsprint run azuredevops "Team\\Sprint 12" --workspace workspace.yaml --dry-run
+
+# Resume a previous run idempotently
+sendsprint run azuredevops "Team\\Sprint 12" --workspace workspace.yaml --run-id sprint-12
 
 # Detect tech stack
 sendsprint detect-tech ./repo

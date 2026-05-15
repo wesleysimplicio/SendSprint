@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-05-15
+
+### Added
+
+- `sendsprint preflight` command to validate transport, credentials, repository health, sprint reads, planning, and Azure work-item link safety before delivery.
+- `--dry-run` for `run` and `sprint`, producing a delivery plan with item, repo, branch, target branch, confidence, and routing reason without writing files or opening PRs.
+- Resumable run state under `.sendsprint/runs/<run-id>.json`, with `--run-id` and `--resume/--no-resume` to avoid duplicate delivery on retries.
+- Post-PR validation step to ensure PR metadata is usable before marking a delivery complete.
+- Confidence-based routing helpers that infer front/back scope from item text when explicit `scope:*` labels are missing.
+- Web API run requests now accept `dry_run`, `resume`, and `run_id`.
+
 ## [0.8.2] - 2026-05-15
 
 ### Added

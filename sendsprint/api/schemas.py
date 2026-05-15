@@ -69,6 +69,9 @@ class StartRunRequest(BaseModel):
     item_keys: list[str] = Field(default_factory=list)
     repo_path: str | None = None
     workspace_path: str | None = None
+    dry_run: bool = False
+    resume: bool = True
+    run_id: str | None = None
 
 
 class StartRunResponse(BaseModel):

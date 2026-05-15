@@ -11,6 +11,36 @@ from sendsprint.models.workspace import WorkspaceConfig
 FRONT_REPO_ROLES = {"front", "mobile"}
 BACK_REPO_ROLES = {"api", "back", "lib"}
 ADO_TASK_PARENT_TYPES = {"Story", "Bug"}
+FRONT_KEYWORDS = {
+    "front",
+    "frontend",
+    "ui",
+    "tela",
+    "web",
+    "componente",
+    "layout",
+    "modal",
+    "botao",
+    "botão",
+    "formulario",
+    "formulário",
+    "grid",
+}
+BACK_KEYWORDS = {
+    "api",
+    "back",
+    "backend",
+    "endpoint",
+    "servico",
+    "serviço",
+    "controller",
+    "database",
+    "banco",
+    "query",
+    "integracao",
+    "integração",
+    "contrato",
+}
 
 
 def plan_story_tasks(
@@ -110,10 +140,32 @@ def item_matches_repo(item: SprintItem, repo_role: str | None) -> bool:
         return True
     scopes = {label.split(":", 1)[1] for label in item.labels if label.startswith("scope:")}
     if not scopes:
+        scopes = infer_item_scopes(item)
+    if not scopes:
         return True
     if repo_role in FRONT_REPO_ROLES and "front" in scopes:
         return True
     return repo_role in BACK_REPO_ROLES and "back" in scopes
+
+
+def infer_item_scopes(item: SprintItem) -> set[str]:
+    """Infer front/back routing from item text when explicit labels are missing."""
+    text = " ".join(
+        part
+        for part in [
+            item.title,
+            item.description or "",
+            item.acceptance_criteria or "",
+            " ".join(item.labels),
+        ]
+        if part
+    ).lower()
+    scopes: set[str] = set()
+    if any(keyword in text for keyword in FRONT_KEYWORDS):
+        scopes.add("front")
+    if any(keyword in text for keyword in BACK_KEYWORDS):
+        scopes.add("back")
+    return scopes
 
 
 def delivery_items(sprint: Sprint) -> list[SprintItem]:
