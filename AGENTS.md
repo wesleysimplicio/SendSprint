@@ -25,6 +25,12 @@ Multi-repo: `workspace.yaml` defines repos with role + tech.
 
 Filtering: `--scope mine` filters items to current user only.
 
+Jira/Azure DevOps operating rules live in
+`.specs/integrations/JIRA_AZUREDEVOPS_CORE.md`. Read it before changing
+operators, work-item creation, task planning, hierarchy links, sprint reads, or
+PR/ticket linking behavior. Use MCP for live tenant state; use the local guide
+for stable rules and known error prevention.
+
 ---
 
 ## 2. Stack
@@ -83,6 +89,7 @@ skills/                Per-platform manifests
   ├── aider/           CONVENTIONS.md (aider --read)
   └── cody/            sendsprint.md (Sourcegraph Cody)
 .specs/                Product/architecture/workflow specs + ADRs
+  └── integrations/    Jira/Azure DevOps core guide and vendor source links
 .claude/hooks/         Pre/post-edit hooks
 templates/             Task + ADR templates
 tests/                 pytest suite (103 tests)
@@ -220,6 +227,8 @@ except FileNotFoundError:
 - **Worktree side effects**: `WorktreeManager` creates real git worktrees. Tests must clean up (`tempfile.TemporaryDirectory()`).
 - **Fix loop max 3**: hard cap. Beyond that = give up + report failed.
 - **Security reviewer is flag-only**: NEVER auto-fix secrets. Always report + halt.
+- **Jira/Azure DevOps docs**: read `.specs/integrations/JIRA_AZUREDEVOPS_CORE.md` before changing sprint/work-item behavior.
+- **Azure hierarchy safety**: invalid parent-child links like `Issue -> Task` must be normalized to `Related`.
 - **Step numbers must match flow order**: changing step order = update step numbers in ALL agent files (`step=N` in StepReport).
 - **PR creation requires push first**: `_push_branch()` must run before `pr_creator`. Otherwise commit lives only locally.
 - **Workspace `new_projects_dir`**: relative to `root_path`. Don't make absolute.
@@ -265,6 +274,7 @@ Refs ADR-005
 - **ADRs**: `.specs/architecture/ADR-*.md`
 - **Workflow**: `.specs/workflow/WORKFLOW.md`
 - **Contributing**: `.specs/workflow/CONTRIBUTING.md`
+- **Jira/Azure DevOps core guide**: `.specs/integrations/JIRA_AZUREDEVOPS_CORE.md`
 - **Per-platform skills**: `skills/{claude,codex,hermes,openclaw,copilot,cursor,windsurf,kiro,zed,cline,continue,aider,cody}/`
 - **Templates**: `templates/`
 

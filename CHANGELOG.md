@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.2] - 2026-05-15
+
+### Added
+
+- Bundled Jira/Azure DevOps core guide for stable agent rules, transport choices, hierarchy safety, generated task behavior, and official vendor documentation links.
+
 ## [0.8.1] - 2026-05-15
 
 ### Fixed
