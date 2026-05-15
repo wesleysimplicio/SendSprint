@@ -48,6 +48,14 @@ Skill multi-agente que automatiza entrega de sprint ponta-a-ponta. Lê sprints d
 
 > 🇺🇸 English versions of these videos: see [README.md](README.md).
 
+## Apresentacoes
+
+Decks executivos da implementacao estao disponiveis em formato editavel e PDF:
+
+- [PPTX em ingles](./docs/presentations/sendsprint-implementation-en.pptx) · [PDF em ingles](./docs/presentations/sendsprint-implementation-en.pdf)
+- [PPTX em portugues](./docs/presentations/sendsprint-implementation-pt-BR.pptx) · [PDF em portugues](./docs/presentations/sendsprint-implementation-pt-BR.pdf)
+- [Previews dos slides](./docs/presentations/README.md)
+
 Os dois vídeos são gerados localmente pelo Remotion (`cd video && npm run build`).
 O do run loop mostra exatamente o que acontece no navegador quando você abre
 `http://localhost:8081` e clica "Iniciar entrega": round 1 falha com regressão
@@ -70,7 +78,7 @@ Veja [`web/README.md`](./web/README.md) pro passo-a-passo e
 
 Funciona em **13 ferramentas de IA pra código**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
-> **Status:** v0.10.0 — UX one-command via chat (`sendsprint sprint`). 13 manifestos de IDE. Cache de credencial em OS-keyring. Instalador MCP do Azure DevOps. Auto-scaffold `.specs/` com sync do `agentic-starter` mais recente. Fluxo completo de 10 passos. Preflight, dry-run, estado resumível, roteamento com confiança e validação pós-PR inclusos. Visuais de produtividade e vídeos Remotion antes/depois estão inclusos. Branches usam `feature/{number}-{title}` e PRs miram `develop` por padrão; ambos podem ser configurados por workspace/repo. Checagens de hierarquia do backlog Azure evitam links pai Issue -> Task inválidos. Guia core de Jira/Azure DevOps incluso para regras estáveis do agente. Publicação PyPI automatizada em tags de release.
+> **Status:** v0.10.1 — UX one-command via chat (`sendsprint sprint`). 13 manifestos de IDE. Cache de credencial em OS-keyring. Instalador MCP do Azure DevOps. Auto-scaffold `.specs/` com sync do `agentic-starter` mais recente. Fluxo completo de 10 passos. Preflight, dry-run, estado resumível, roteamento com confiança e validação pós-PR inclusos. Visuais de produtividade, vídeos Remotion antes/depois e decks bilíngues da implementação estão inclusos. Branches usam `feature/{number}-{title}` e PRs miram `develop` por padrão; ambos podem ser configurados por workspace/repo. Checagens de hierarquia do backlog Azure evitam links pai Issue -> Task inválidos. Guia core de Jira/Azure DevOps incluso para regras estáveis do agente. Publicação PyPI automatizada em tags de release.
 
 ---
 

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] - 2026-05-15
+
+### Added
+
+- Bilingual SendSprint implementation presentation decks in PPTX and PDF formats, with generated PNG previews and contact sheets.
+- README links for the English and Portuguese implementation decks.
+
 ## [0.10.0] - 2026-05-15
 
 ### Added
