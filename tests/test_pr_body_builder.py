@@ -38,7 +38,8 @@ def test_build_contains_summary_and_dod(tmp_path: Path):
     assert "## Summary" in body
     assert "Demo Sprint" in body
     assert "## Definition of Done" in body
-    assert "Coverage diff ≥ 80%" in body
+    assert "Coverage diff >= 80%" in body
+    assert "SendSprint" not in body
 
 
 def test_items_block_renders_item_link():

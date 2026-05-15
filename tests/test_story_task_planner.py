@@ -31,10 +31,11 @@ def test_plan_story_tasks_creates_front_and_back_tasks_when_story_has_no_tasks()
 
     sprint, report = plan_story_tasks(_sprint([_story()]), ws)
 
-    generated = [item for item in sprint.items if "sendsprint:generated" in item.labels]
+    generated = [item for item in sprint.items if "auto:generated" in item.labels]
     assert report.status == "ok"
     assert [item.key for item in generated] == ["179500-FRONT", "179500-BACK"]
     assert all(item.parent_key == "179500" for item in generated)
+    assert all("SendSprint" not in (item.description or "") for item in generated)
 
 
 def test_plan_story_tasks_skips_story_when_child_task_exists() -> None:
