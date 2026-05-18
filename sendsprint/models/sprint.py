@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -103,9 +103,12 @@ class ArchitectureReport(BaseModel):
     has_deploy_topology: bool = False
     has_readme: bool = False
     has_agentic_starter: bool = False
+    mapping_substrate: str = "native"
+    has_skill_catalog: bool = False
+    has_agent_catalog: bool = False
     missing: list[str] = Field(default_factory=list)
     score: float = 0.0
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def is_mapped(self) -> bool:

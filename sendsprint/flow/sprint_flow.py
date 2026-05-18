@@ -428,9 +428,15 @@ class SprintFlow:
         if not arch.is_mapped:
             build_result = build_architecture(repo, fingerprint=fp)
             arch = self.mapper.inspect(repo)
-            step.message = f"built {len(build_result.created_files)} doc(s), score {arch.score:.2f}"
+            step.message = (
+                f"built {len(build_result.created_files)} doc(s), "
+                f"score {arch.score:.2f}, substrate {arch.mapping_substrate}"
+            )
         else:
-            step.message = f"already mapped, score {arch.score:.2f}"
+            step.message = (
+                f"already mapped, score {arch.score:.2f}, "
+                f"substrate {arch.mapping_substrate}"
+            )
         step.status = "ok" if arch.is_mapped else "failed"
         step.finished_at = datetime.now(tz=UTC)
         report.steps.append(step)

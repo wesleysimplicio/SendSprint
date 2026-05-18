@@ -20,6 +20,9 @@ def test_empty_repo_has_zero_score(tmp_path: Path) -> None:
 def test_full_repo_passes_threshold(tmp_path: Path) -> None:
     (tmp_path / "ARCHITECTURE.md").write_text("# Architecture")
     (tmp_path / "README.md").write_text("# Readme")
+    (tmp_path / ".skills").mkdir(parents=True)
+    (tmp_path / ".skills" / "README.md").write_text("# Skills")
+    (tmp_path / ".agents").mkdir(parents=True)
     (tmp_path / "docs" / "architecture").mkdir(parents=True)
     (tmp_path / "docs" / "c4").mkdir(parents=True)
     adr_dir = tmp_path / "docs" / "adr"
@@ -47,6 +50,9 @@ def test_partial_repo_below_threshold(tmp_path: Path) -> None:
 def test_partial_repo_meets_threshold(tmp_path: Path) -> None:
     (tmp_path / "ARCHITECTURE.md").write_text("# Architecture")
     (tmp_path / "README.md").write_text("# Readme")
+    (tmp_path / ".skills").mkdir(parents=True)
+    (tmp_path / ".skills" / "README.md").write_text("# Skills")
+    (tmp_path / ".agents").mkdir(parents=True)
     (tmp_path / "docs" / "architecture").mkdir(parents=True)
     adr_dir = tmp_path / "docs" / "adr"
     adr_dir.mkdir(parents=True)
@@ -91,3 +97,21 @@ def test_no_starter_marker_does_not_set_flag(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Readme")
     report = ArchitectureMapper().inspect(tmp_path)
     assert report.has_agentic_starter is False
+
+
+def test_llm_project_mapper_substrate_marks_repo_as_mapped(tmp_path: Path) -> None:
+    (tmp_path / ".llm-project-mapper.json").write_text("{}")
+    (tmp_path / ".skills").mkdir(parents=True)
+    (tmp_path / ".skills" / "README.md").write_text("# Skills")
+    (tmp_path / ".agents").mkdir(parents=True)
+    (tmp_path / ".specs" / "architecture").mkdir(parents=True)
+    (tmp_path / ".specs" / "architecture" / "DESIGN.md").write_text("# Design")
+    (tmp_path / ".specs" / "product").mkdir(parents=True)
+    (tmp_path / ".specs" / "product" / "VISION.md").write_text("# Vision")
+
+    report = ArchitectureMapper().inspect(tmp_path)
+
+    assert report.mapping_substrate == "llm-project-mapper"
+    assert report.has_skill_catalog is True
+    assert report.has_agent_catalog is True
+    assert report.is_mapped is True

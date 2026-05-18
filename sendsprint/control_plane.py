@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from sendsprint.agent_registry import AgentRegistry, default_agent_registry
+
 WorkerStatus = Literal["queued", "running", "blocked", "done", "failed"]
 
 
@@ -16,6 +18,8 @@ class WorkerAssignment(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     worker_id: str
+    provider_key: str = "codex"
+    capability_key: str = "implement"
     issue_key: str
     repo: str
     branch: str
@@ -35,9 +39,12 @@ class ControlPlaneState(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     assignments: list[WorkerAssignment] = Field(default_factory=list)
+    registry: AgentRegistry = Field(default_factory=default_agent_registry)
 
     def claim(self, assignment: WorkerAssignment) -> ControlPlaneState:
         """Return new state with an assignment if ownership is free."""
+        self.registry.resolve(assignment.provider_key)
+        self.registry.resolve(assignment.provider_key).capability(assignment.capability_key)
         for current in self.assignments:
             if current.status in {"done", "failed"}:
                 continue

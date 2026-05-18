@@ -10,6 +10,8 @@ from sendsprint.control_plane import ControlPlaneState, WorkerAssignment
 def test_control_plane_rejects_duplicate_ownership() -> None:
     assignment = WorkerAssignment(
         worker_id="a",
+        provider_key="codex",
+        capability_key="implement",
         issue_key="#1",
         repo="repo",
         branch="feature/1",
@@ -23,6 +25,8 @@ def test_control_plane_rejects_duplicate_ownership() -> None:
 def test_control_plane_updates_status() -> None:
     assignment = WorkerAssignment(
         worker_id="a",
+        provider_key="codex",
+        capability_key="implement",
         issue_key="#1",
         repo="repo",
         branch="feature/1",
@@ -30,3 +34,18 @@ def test_control_plane_updates_status() -> None:
     )
     state = ControlPlaneState().claim(assignment).update("a", "done")
     assert state.active() == []
+
+
+def test_control_plane_rejects_unknown_provider() -> None:
+    assignment = WorkerAssignment(
+        worker_id="a",
+        provider_key="unknown",
+        capability_key="implement",
+        issue_key="#1",
+        repo="repo",
+        branch="feature/1",
+        worktree_path="/tmp/repo-wt-1",
+    )
+
+    with pytest.raises(KeyError):
+        ControlPlaneState().claim(assignment)
