@@ -12,7 +12,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Docs
 
-- roadmap: add meeting transcript task extraction workstream
+- ingest: add transcript task extraction
 - templates: require frontend stack recipes
 - roadmap: link sprint autopilot issues
 - roadmap: define sprint autopilot backlog
@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - node: fix root lockfile setup
