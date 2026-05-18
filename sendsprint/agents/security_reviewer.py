@@ -74,17 +74,26 @@ SCAN_EXTENSIONS = {
 MAX_FILE_SIZE = 512_000
 
 
+MAX_DEP_FINDINGS = 20
+
+
 class SecurityReviewer:
     """Scans source for common security issues. Flag-only — never modifies files."""
 
     def __init__(self, repo_path: str | Path, fingerprint: TechFingerprint) -> None:
         self.repo = Path(repo_path).resolve()
         self.fp = fingerprint
+        # Per-tool diagnostic surface. Populated by audit helpers, surfaced
+        # in StepReport.message and consumed by tests. Keys: tool name.
+        # Values: {"status": "ok|skipped|failed", "findings": int,
+        # "truncated": bool, "reason": str|None, "error": str|None}.
+        self.tool_results: dict[str, dict[str, object]] = {}
 
     def scan(self) -> StepReport:
         report = StepReport(step=6, name="security-review", repo=str(self.repo))
         report.started_at = datetime.now(tz=UTC)
         report.status = "running"
+        self.tool_results = {}
 
         findings: list[SecurityFinding] = []
         findings.extend(self._scan_secrets())
@@ -95,7 +104,13 @@ class SecurityReviewer:
         report.status = (
             "ok" if not any(f.severity in ("high", "critical") for f in findings) else "failed"
         )
+        tool_summary = ", ".join(
+            f"{name}={data.get('status')}({data.get('findings', 0)})"
+            for name, data in self.tool_results.items()
+        )
         report.message = f"{len(findings)} finding(s) flagged"
+        if tool_summary:
+            report.message = f"{report.message}; tools: {tool_summary}"
         report.finished_at = datetime.now(tz=UTC)
         return report
 
@@ -202,16 +217,36 @@ class SecurityReviewer:
                 text=True,
                 timeout=120,
             )
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except FileNotFoundError:
+            self.tool_results["pip-audit"] = {
+                "status": "skipped",
+                "findings": 0,
+                "reason": "pip-audit not installed",
+            }
+            return []
+        except subprocess.TimeoutExpired:
+            self.tool_results["pip-audit"] = {
+                "status": "failed",
+                "findings": 0,
+                "error": "timeout",
+            }
             return []
         if result.returncode == 0:
+            self.tool_results["pip-audit"] = {"status": "ok", "findings": 0}
             return []
         try:
             data = json.loads(result.stdout)
         except (json.JSONDecodeError, ValueError):
+            self.tool_results["pip-audit"] = {
+                "status": "failed",
+                "findings": 0,
+                "error": "json parse error",
+            }
             return []
+        raw_list = data if isinstance(data, list) else data.get("dependencies", [])
+        total_input = len(raw_list)
         out: list[SecurityFinding] = []
-        for vuln in (data if isinstance(data, list) else data.get("dependencies", []))[:20]:
+        for vuln in raw_list[:MAX_DEP_FINDINGS]:
             name = vuln.get("name", "unknown")
             for v in vuln.get("vulns", []):
                 vid = v.get("id", "")
@@ -226,6 +261,13 @@ class SecurityReviewer:
                         recommendation=f"upgrade {name}",
                     )
                 )
+        truncated = total_input > MAX_DEP_FINDINGS
+        self.tool_results["pip-audit"] = {
+            "status": "ok",
+            "findings": len(out),
+            "pip_findings": len(out),
+            "truncated": truncated,
+        }
         return out
 
     def _cargo_audit(self) -> list[SecurityFinding]:
@@ -237,28 +279,66 @@ class SecurityReviewer:
                 text=True,
                 timeout=120,
             )
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except FileNotFoundError:
+            self.tool_results["cargo-audit"] = {
+                "status": "skipped",
+                "findings": 0,
+                "cargo_findings": 0,
+                "reason": "cargo not installed",
+            }
+            return []
+        except subprocess.TimeoutExpired:
+            self.tool_results["cargo-audit"] = {
+                "status": "failed",
+                "findings": 0,
+                "error": "timeout",
+            }
             return []
         if result.returncode == 0:
+            self.tool_results["cargo-audit"] = {
+                "status": "ok",
+                "findings": 0,
+                "cargo_findings": 0,
+            }
             return []
         try:
             data = json.loads(result.stdout)
         except (json.JSONDecodeError, ValueError):
+            self.tool_results["cargo-audit"] = {
+                "status": "failed",
+                "findings": 0,
+                "error": "json parse error",
+            }
             return []
+        raw_list = data.get("vulnerabilities", {}).get("list", [])
+        total_input = len(raw_list)
         out: list[SecurityFinding] = []
-        for vuln in data.get("vulnerabilities", {}).get("list", [])[:20]:
+        for vuln in raw_list[:MAX_DEP_FINDINGS]:
             advisory = vuln.get("advisory", {})
             pkg = advisory.get("package", "unknown")
             title = advisory.get("title", "vulnerability")
+            advisory_id = advisory.get("id", "")
+            severity_raw = (advisory.get("severity") or "high").lower()
+            severity = cast(
+                Severity,
+                severity_raw if severity_raw in {"low", "medium", "high", "critical"} else "high",
+            )
             out.append(
                 SecurityFinding(
                     rule="cargo-audit",
-                    severity="high",
+                    severity=severity,
                     file="Cargo.toml",
-                    message=f"{pkg}: {title}",
+                    message=f"{pkg}: {advisory_id} — {title}",
                     recommendation=f"upgrade {pkg}",
                 )
             )
+        truncated = total_input > MAX_DEP_FINDINGS
+        self.tool_results["cargo-audit"] = {
+            "status": "ok",
+            "findings": len(out),
+            "cargo_findings": len(out),
+            "truncated": truncated,
+        }
         return out
 
     def _iter_source_files(self):

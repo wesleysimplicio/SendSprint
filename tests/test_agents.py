@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -120,6 +121,107 @@ class TestDevAgent:
         assert report.status == "failed"
         assert "__nonexistent_binary_xyz__" in (report.message or "")
 
+    # --- Bun (TASK-001) ---
+
+    def test_dev_agent_bun_install_command(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """AC-3: `bun install` is invoked for bun fingerprint."""
+        captured: dict[str, list[str]] = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="ok", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        fp = make_fp(tmp_path, techs=["bun"], pms=["bun"])
+        agent = DevAgent(tmp_path, fp)
+        report = agent.install()
+        assert report.status == "ok"
+        assert captured["cmd"] == ["bun", "install"]
+
+    def test_dev_agent_bun_build_command(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """AC-3: `bun run build` is invoked when build script is present."""
+        captured: dict[str, list[str]] = {}
+        (tmp_path / "package.json").write_text(json.dumps({"scripts": {"build": "tsc"}}))
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="ok", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        fp = make_fp(tmp_path, techs=["bun"], pms=["bun"])
+        agent = DevAgent(tmp_path, fp)
+        report = agent.build()
+        assert report.status == "ok"
+        assert captured["cmd"] == ["bun", "run", "build"]
+
+    def test_dev_agent_bun_build_skipped_no_script(self, tmp_path: Path) -> None:
+        """AC-3: when package.json has no build script, build is skipped."""
+        (tmp_path / "package.json").write_text(json.dumps({"scripts": {"dev": "bun run dev"}}))
+        fp = make_fp(tmp_path, techs=["bun"], pms=["bun"])
+        agent = DevAgent(tmp_path, fp)
+        report = agent.build()
+        assert report.status == "skipped"
+        assert "no build script" in (report.message or "")
+
+    def test_dev_agent_bun_install_skipped_no_binary(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """AC-6: bun binary absent → status='skipped', message='bun not installed'."""
+
+        def raise_fnf(cmd, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory: 'bun'")
+
+        monkeypatch.setattr(subprocess, "run", raise_fnf)
+        fp = make_fp(tmp_path, techs=["bun"], pms=["bun"])
+        agent = DevAgent(tmp_path, fp)
+        report = agent.install()
+        assert report.status == "skipped"
+        assert "bun not installed" in (report.message or "")
+
+    def test_dev_agent_install_and_build_returns_two_reports(self, tmp_path: Path) -> None:
+        """install_and_build returns both step reports."""
+        fp = make_fp(tmp_path, techs=["bun"], pms=["bun"])
+        agent = DevAgent(tmp_path, fp)
+        reports = agent.install_and_build()
+        assert len(reports) == 2
+        assert reports[0].name == "install-deps"
+        assert reports[1].name == "build"
+
+    # --- Deno (Sprint 3) ---
+
+    def test_dev_agent_deno_install_command(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        captured: dict[str, list[str]] = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        fp = make_fp(tmp_path, techs=["deno"], pms=["deno"])
+        agent = DevAgent(tmp_path, fp)
+        report = agent.install()
+        assert report.status == "ok"
+        assert captured["cmd"][0:2] == ["deno", "cache"]
+
+    def test_dev_agent_deno_skipped_no_binary(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        def raise_fnf(cmd, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory: 'deno'")
+
+        monkeypatch.setattr(subprocess, "run", raise_fnf)
+        fp = make_fp(tmp_path, techs=["deno"], pms=["deno"])
+        agent = DevAgent(tmp_path, fp)
+        report = agent.install()
+        assert report.status == "skipped"
+        assert "deno not installed" in (report.message or "")
+
 
 # ---------------------------------------------------------------------------
 # TestRunner
@@ -162,6 +264,56 @@ class TestTestRunner:
         runner = TestRunner(tmp_path, fp)
         assert runner.evidence_dir.exists()
         assert runner.evidence_dir.is_dir()
+
+    # --- Bun / Deno (TASK-001 + Sprint 3 #12) ---
+
+    def test_test_runner_bun_command(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """AC-5: `bun test` is invoked for bun fingerprint."""
+        captured: dict[str, list[str]] = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=0, stdout='{"tests":[]}', stderr=""
+            )
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        fp = make_fp(tmp_path, techs=["bun"])
+        runner = TestRunner(tmp_path, fp)
+        report = runner.run_unit()
+        assert report.status == "ok"
+        assert captured["cmd"] == ["bun", "test"]
+
+    def test_test_runner_bun_skipped_no_binary(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """AC-6: bun absent → status='skipped', message='bun not installed'."""
+
+        def raise_fnf(cmd, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory: 'bun'")
+
+        monkeypatch.setattr(subprocess, "run", raise_fnf)
+        fp = make_fp(tmp_path, techs=["bun"])
+        runner = TestRunner(tmp_path, fp)
+        report = runner.run_unit()
+        assert report.status == "skipped"
+        assert "bun not installed" in (report.message or "")
+
+    def test_test_runner_deno_command(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        captured: dict[str, list[str]] = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        fp = make_fp(tmp_path, techs=["deno"])
+        runner = TestRunner(tmp_path, fp)
+        report = runner.run_unit()
+        assert report.status == "ok"
+        assert captured["cmd"][0:2] == ["deno", "test"]
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +411,54 @@ class TestLintRunner:
         report = runner.run()
         assert report.status == "skipped"
         assert "not installed" in (report.message or "")
+
+    # --- Bun / Deno (TASK-001 + Sprint 3 #12) ---
+
+    def test_lint_runner_bun_eslint_command(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """AC-4: `bun x eslint .` is invoked for bun fingerprint."""
+        captured: dict[str, list[str]] = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        fp = make_fp(tmp_path, techs=["bun"])
+        runner = LintRunner(tmp_path, fp)
+        report = runner.run()
+        assert report.status == "ok"
+        assert captured["cmd"] == ["bun", "x", "eslint", "."]
+
+    def test_lint_runner_bun_skipped_no_binary(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        def raise_fnf(cmd, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory: 'bun'")
+
+        monkeypatch.setattr(subprocess, "run", raise_fnf)
+        fp = make_fp(tmp_path, techs=["bun"])
+        runner = LintRunner(tmp_path, fp)
+        report = runner.run()
+        assert report.status == "skipped"
+        assert "bun not installed" in (report.message or "")
+
+    def test_lint_runner_deno_command(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        captured: dict[str, list[str]] = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        fp = make_fp(tmp_path, techs=["deno"])
+        runner = LintRunner(tmp_path, fp)
+        report = runner.run()
+        assert report.status == "ok"
+        assert captured["cmd"] == ["deno", "lint"]
 
 
 # ---------------------------------------------------------------------------

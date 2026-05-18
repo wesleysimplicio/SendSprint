@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] - 2026-05-18
+
+### Added
+
+- **Bun runtime detection** (`bun.lockb` or `bunfig.toml`) in `sendsprint/tech/detector.py`. Coexistence with `package.json` keeps Bun as the primary runtime; frameworks (React/Vue/etc.) layered on top are still detected.
+- **Deno runtime detection** via `deno.json`, `deno.jsonc`, or `deno.lock`.
+- Bun + Deno install/build/lint/test commands in `agents/dev.py`, `agents/lint_runner.py`, `agents/test_runner.py` (`bun install`, `bun run build`, `bun x eslint .`, `bun test`, `deno cache .`, `deno task build`, `deno lint`, `deno test --quiet`).
+- `DevAgent.install_and_build()` orchestrator; skips Bun build when no `scripts.build` is declared in `package.json`.
+- Missing Bun/Deno binaries now produce `StepReport.status="skipped"` with `message="<tool> not installed"` (mock-fallback contract from `AGENTS.md` §5), rather than `failed`.
+- `SecurityReviewer.tool_results` diagnostic surface — per-tool `{status, findings, truncated, reason, error}` populated for `cargo-audit` and `pip-audit`, summarized in `StepReport.message`.
+- `cargo-audit` findings now carry the advisory id (e.g. `RUSTSEC-2024-0001`) and the upstream severity when available.
+- `tests/fixtures/cargo-audit-output.json` and `tests/fixtures/pip-audit-output.json` for deterministic security parser tests.
+- `tests/test_security_reviewer.py` (15 new tests) and `tests/test_tech_detector.py` / `tests/test_agents.py` Bun + Deno coverage (21 new tests). Total: 198 passing.
+
+### Changed
+
+- `detect_tech` no longer adds the generic `node` tech when a Bun or Deno runtime is detected (more-specific runtime wins).
+
 ## [0.11.0] - 2026-05-15
 
 ### Added
