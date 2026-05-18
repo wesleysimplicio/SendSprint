@@ -35,6 +35,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- publish: switch PyPI workflow to repository token auth after trusted publisher rejection
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
