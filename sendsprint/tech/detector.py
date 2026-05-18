@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 KNOWN_TECHS = {
     "dotnet": "C# / .NET",
     "node": "Node.js",
+    "bun": "Bun",
+    "deno": "Deno",
     "angular": "Angular",
     "react": "React",
     "vue": "Vue",
@@ -42,6 +44,8 @@ FRONT_TECHS = {"angular", "react", "vue", "nextjs"}
 BACK_TECHS = {
     "dotnet",
     "node",
+    "bun",
+    "deno",
     "express",
     "nestjs",
     "python",
@@ -82,6 +86,33 @@ def _add(fp_techs: list[str], fp_signals: dict[str, str], tech: str, marker: str
     fp_signals[marker] = tech
 
 
+def _scan_bun(repo: Path, techs: list[str], signals: dict[str, str], pms: list[str]) -> None:
+    """Detect Bun runtime (bun.lockb or bunfig.toml).
+
+    Wins over generic ``node`` when both markers coexist (AC-2 of TASK-001).
+    Frameworks declared in ``package.json`` (Angular/React/Vue/etc.) are still
+    layered on top by ``_scan_node`` because Bun can run them.
+    """
+    if (repo / "bun.lockb").exists():
+        _add(techs, signals, "bun", "bun.lockb")
+        if "bun" not in pms:
+            pms.append("bun")
+    elif (repo / "bunfig.toml").exists():
+        _add(techs, signals, "bun", "bunfig.toml")
+        if "bun" not in pms:
+            pms.append("bun")
+
+
+def _scan_deno(repo: Path, techs: list[str], signals: dict[str, str], pms: list[str]) -> None:
+    """Detect Deno runtime (deno.json, deno.jsonc, or deno.lock)."""
+    for marker in ("deno.json", "deno.jsonc", "deno.lock"):
+        if (repo / marker).exists():
+            _add(techs, signals, "deno", marker)
+            if "deno" not in pms:
+                pms.append("deno")
+            return
+
+
 def _scan_node(repo: Path, techs: list[str], signals: dict[str, str], pms: list[str]) -> None:
     pkg = repo / "package.json"
     if not pkg.exists():
@@ -94,10 +125,12 @@ def _scan_node(repo: Path, techs: list[str], signals: dict[str, str], pms: list[
         pms.append("pnpm")
     if (repo / "bun.lockb").exists() and "bun" not in pms:
         pms.append("bun")
+    runtime_locked = any(t in techs for t in ("bun", "deno"))
     try:
         data = json.loads(pkg.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        _add(techs, signals, "node", "package.json")
+        if not runtime_locked:
+            _add(techs, signals, "node", "package.json")
         return
     deps: dict[str, str] = {}
     for k in ("dependencies", "devDependencies", "peerDependencies"):
@@ -115,7 +148,10 @@ def _scan_node(repo: Path, techs: list[str], signals: dict[str, str], pms: list[
         _add(techs, signals, "nestjs", "package.json:@nestjs/core")
     elif "express" in deps or "fastify" in deps or "koa" in deps:
         _add(techs, signals, "express", "package.json")
-    if not any(t in techs for t in ("angular", "react", "vue", "nextjs", "nestjs", "express")):
+    framework_detected = any(
+        t in techs for t in ("angular", "react", "vue", "nextjs", "nestjs", "express")
+    )
+    if not framework_detected and not runtime_locked:
         _add(techs, signals, "node", "package.json")
 
 
@@ -235,6 +271,8 @@ def detect_tech(repo_path: str | Path) -> TechFingerprint:
     signals: dict[str, str] = {}
     pms: list[str] = []
 
+    _scan_bun(repo, techs, signals, pms)
+    _scan_deno(repo, techs, signals, pms)
     _scan_node(repo, techs, signals, pms)
     _scan_python(repo, techs, signals, pms)
     _scan_dotnet(repo, techs, signals, pms)

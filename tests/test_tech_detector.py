@@ -204,3 +204,90 @@ def test_primary_tech_none_on_empty(tmp_path: Path) -> None:
 def test_primary_role_other_on_empty(tmp_path: Path) -> None:
     fp = detect_tech(tmp_path)
     assert fp.primary_role == "other"
+
+
+# ---------------------------------------------------------------------------
+# 15. Bun runtime detection (TASK-001)
+# ---------------------------------------------------------------------------
+
+
+def test_detector_bun_only(tmp_path: Path) -> None:
+    """AC-1: bun.lockb alone returns ['bun']."""
+    (tmp_path / "bun.lockb").write_bytes(b"\x00binary lockfile")
+    fp = detect_tech(tmp_path)
+    assert "bun" in fp.techs
+    assert "bun" in fp.package_managers
+    assert fp.primary_tech == "bun"
+
+
+def test_detector_bun_wins_over_node(tmp_path: Path) -> None:
+    """AC-2: bun.lockb + package.json (no framework) → bun beats generic node."""
+    (tmp_path / "bun.lockb").write_bytes(b"\x00binary lockfile")
+    _pkg(tmp_path, dependencies={"lodash": "^4.17.21"})
+    fp = detect_tech(tmp_path)
+    assert "bun" in fp.techs
+    assert "node" not in fp.techs
+    assert fp.primary_tech == "bun"
+
+
+def test_detector_bun_with_framework(tmp_path: Path) -> None:
+    """Bun runtime + React framework: both detected."""
+    (tmp_path / "bun.lockb").write_bytes(b"\x00")
+    _pkg(tmp_path, dependencies={"react": "^18.0.0"})
+    fp = detect_tech(tmp_path)
+    assert "bun" in fp.techs
+    assert "react" in fp.techs
+    assert "node" not in fp.techs
+
+
+def test_detector_bunfig_marker(tmp_path: Path) -> None:
+    """bunfig.toml alone (no lockfile) also detects bun."""
+    (tmp_path / "bunfig.toml").write_text('[install]\nregistry = "https://registry.npmjs.org"\n')
+    fp = detect_tech(tmp_path)
+    assert "bun" in fp.techs
+
+
+def test_detector_bun_role_back(tmp_path: Path) -> None:
+    """Bun without a frontend framework is a back-end runtime."""
+    (tmp_path / "bun.lockb").write_bytes(b"\x00")
+    fp = detect_tech(tmp_path)
+    assert "back" in fp.roles
+
+
+# ---------------------------------------------------------------------------
+# 16. Deno runtime detection (Sprint 3 issue #12)
+# ---------------------------------------------------------------------------
+
+
+def test_detector_deno_json(tmp_path: Path) -> None:
+    (tmp_path / "deno.json").write_text("{}")
+    fp = detect_tech(tmp_path)
+    assert "deno" in fp.techs
+    assert "deno" in fp.package_managers
+
+
+def test_detector_deno_jsonc(tmp_path: Path) -> None:
+    (tmp_path / "deno.jsonc").write_text("{}")
+    fp = detect_tech(tmp_path)
+    assert "deno" in fp.techs
+
+
+def test_detector_deno_lock(tmp_path: Path) -> None:
+    (tmp_path / "deno.lock").write_text('{"version":"3"}')
+    fp = detect_tech(tmp_path)
+    assert "deno" in fp.techs
+
+
+def test_detector_deno_wins_over_node(tmp_path: Path) -> None:
+    """Deno + package.json (rare) keeps deno as primary, drops generic node."""
+    (tmp_path / "deno.json").write_text("{}")
+    _pkg(tmp_path, dependencies={"lodash": "^4.17.21"})
+    fp = detect_tech(tmp_path)
+    assert "deno" in fp.techs
+    assert "node" not in fp.techs
+
+
+def test_detector_deno_role_back(tmp_path: Path) -> None:
+    (tmp_path / "deno.json").write_text("{}")
+    fp = detect_tech(tmp_path)
+    assert "back" in fp.roles

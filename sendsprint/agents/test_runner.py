@@ -12,6 +12,8 @@ from ..tech import TechFingerprint
 
 logger = logging.getLogger(__name__)
 
+OPTIONAL_RUNTIMES = {"bun", "deno"}
+
 UNIT_COMMANDS: dict[str, list[str]] = {
     "angular": ["npx", "ng", "test", "--watch=false", "--browsers=ChromeHeadless"],
     "react": ["npx", "react-scripts", "test", "--watchAll=false"],
@@ -19,6 +21,8 @@ UNIT_COMMANDS: dict[str, list[str]] = {
     "vue": ["npm", "test", "--", "--run"],
     "nestjs": ["npm", "test"],
     "node": ["npm", "test"],
+    "bun": ["bun", "test"],
+    "deno": ["deno", "test", "--quiet"],
     "dotnet": ["dotnet", "test"],
     "spring": ["mvn", "test"],
     "java": ["mvn", "test"],
@@ -127,8 +131,12 @@ class TestRunner:
             )
             self._collect_screenshots(report)
         except FileNotFoundError:
-            report.status = "failed"
-            report.message = f"command not found: {cmd[0]}"
+            if cmd and cmd[0] in OPTIONAL_RUNTIMES:
+                report.status = "skipped"
+                report.message = f"{cmd[0]} not installed"
+            else:
+                report.status = "failed"
+                report.message = f"command not found: {cmd[0]}"
         except subprocess.TimeoutExpired:
             report.status = "failed"
             report.message = f"timeout after 600s: {' '.join(cmd)}"

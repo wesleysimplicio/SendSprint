@@ -12,6 +12,8 @@ from ..tech import TechFingerprint
 
 logger = logging.getLogger(__name__)
 
+OPTIONAL_RUNTIMES = {"bun", "deno"}
+
 LINT_COMMANDS: dict[str, list[str]] = {
     "angular": ["npx", "ng", "lint"],
     "react": ["npx", "eslint", ".", "--max-warnings=0"],
@@ -19,6 +21,8 @@ LINT_COMMANDS: dict[str, list[str]] = {
     "vue": ["npx", "eslint", ".", "--max-warnings=0"],
     "nestjs": ["npx", "eslint", ".", "--max-warnings=0"],
     "node": ["npx", "eslint", "."],
+    "bun": ["bun", "x", "eslint", "."],
+    "deno": ["deno", "lint"],
     "dotnet": ["dotnet", "format", "--verify-no-changes"],
     "spring": ["mvn", "checkstyle:check"],
     "java": ["mvn", "checkstyle:check"],
@@ -82,7 +86,10 @@ class LintRunner:
                 report.message = result.stdout[:2000] or result.stderr[:2000]
         except FileNotFoundError:
             report.status = "skipped"
-            report.message = f"linter not installed: {cmd[0]}"
+            if cmd and cmd[0] in OPTIONAL_RUNTIMES:
+                report.message = f"{cmd[0]} not installed"
+            else:
+                report.message = f"linter not installed: {cmd[0]}"
         except subprocess.TimeoutExpired:
             report.status = "failed"
             report.message = f"timeout after 120s: {' '.join(cmd)}"
