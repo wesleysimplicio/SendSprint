@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- flow: ship codegen and deploy hooks
 - mcp: expose stdio server command
 - implement sprint-1 through backlog issues (#4-#15)
 - add Azure required PR reviewers
@@ -33,6 +34,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
+- release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: automate coverage badge and changelog
 
