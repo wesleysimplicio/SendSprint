@@ -58,6 +58,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - `SprintFlow` now runs optional code generation after build and optional deploy callbacks after PR creation.
 - `README.md`, `README.pt-BR.md`, `examples/workspace.yaml`, and `.specs/architecture/DESIGN.md` now document the shipped codegen/deploy hooks.
+- `docs/validation/ralph-llm-project-mapper.md` now records the concrete external-pilot blocker evidence used to close Sprint 1 validation honestly.
 - Bumped package metadata to `0.13.0` for the Sprint 2 epic closeout.
 
 ## [0.12.2] - 2026-05-18
