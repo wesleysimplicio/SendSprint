@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- mcp: expose stdio server command
 - implement sprint-1 through backlog issues (#4-#15)
 - add Azure required PR reviewers
 - add soundtrack to SendSprint videos
@@ -31,16 +32,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - release: automate coverage badge and changelog
-
-### Added
-
-- `sendsprint mcp-serve` as the stdio entrypoint for the built-in MCP server, with Content-Length framed JSON-RPC transport.
-- ADR-008 documenting the SendSprint MCP server schema contract and its SDK-free framing loop.
-
-### Docs
-
-- document the shipped MCP server mode in both READMEs and mark the roadmap item as delivered.
 
 ### Chore
 
