@@ -72,6 +72,27 @@ Issues = "https://github.com/wesleysimplicio/SendSprint/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["sendsprint"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.agents",
+    "/.claude",
+    "/.codex",
+    "/.github",
+    "/.plans",
+    "/.ralph",
+    "/.skills",
+    "/dist",
+    "/docs/assets/*.png",
+    "/docs/presentations",
+    "/GOAL_RESULT.md",
+    "/PRD.md",
+    "/PROGRESS.md",
+    "/sendsprint/api/assets/screenshots",
+    "/test-results",
+    "/video",
+    "/web",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
