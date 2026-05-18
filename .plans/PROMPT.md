@@ -1,4 +1,4 @@
-You are continuing work on SendSprint — a multi-agent CLI that delivers Jira/ADO sprints autonomously via Claude Code.
+You are continuing work on SendSprint — a multi-agent CLI that delivers Jira/ADO sprints autonomously via Claude Code's Ralph Wiggum skill or Codex `/goal`.
 
 This is a FRESH context window. Read AGENTS.md before doing anything.
 
@@ -32,6 +32,11 @@ This is a FRESH context window. Read AGENTS.md before doing anything.
 ONE FEATURE PER ITERATION. Do not start a second one in the same loop.
 
 If every feature has `passes: true`, output `<promise>COMPLETE</promise>`.
+
+Sprint-1 interpretation:
+- "Ralph" means the Ralph Wiggum skill in Claude Code (`/ralph-loop ...`).
+- The Codex equivalent is `/goal ...`.
+- The canonical pilot repo for this validation is `wesleysimplicio/llm-project-mapper`, not self-hosted execution inside SendSprint.
 
 ## Don'ts
 

@@ -35,6 +35,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - release: refresh coverage badge and changelog
 - release: automate coverage badge and changelog
 
+### Added
+
+- `sendsprint mcp-serve` as the stdio entrypoint for the built-in MCP server, with Content-Length framed JSON-RPC transport.
+- ADR-008 documenting the SendSprint MCP server schema contract and its SDK-free framing loop.
+
+### Docs
+
+- document the shipped MCP server mode in both READMEs and mark the roadmap item as delivered.
+- clarify that Sprint 1 autonomous-loop validation targets `llm-project-mapper` via Claude Code's Ralph Wiggum skill or Codex `/goal`, instead of a self-hosted `ralph run` inside SendSprint.
 ### Chore
 
 - add long-running AI agent playbook scaffolding

@@ -47,4 +47,4 @@ Lista priorizada de tudo que precisa ser feito no SendSprint. Fonte da verdade d
 
 ## Próximas decisões pendentes
 
-- Validar `ralph run --max-iterations 5` fim a fim para item #2 sem depender de serviços externos.
+- Validar o loop autônomo no `llm-project-mapper` usando a skill Ralph Wiggum do Claude Code e o `/goal` do Codex para o item #2.
