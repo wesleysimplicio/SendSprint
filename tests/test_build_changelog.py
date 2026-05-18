@@ -96,6 +96,31 @@ class TestPromoteUnreleased:
         assert new == original
 
 
+class TestWriteUnreleased:
+    def test_inserts_block_before_first_release(self, tmp_path: Path) -> None:
+        changelog = tmp_path / "CHANGELOG.md"
+        changelog.write_text(
+            "# Changelog\n\n## [0.12.1] - 2026-05-18\n\n### Added\n\n- thing\n",
+            encoding="utf-8",
+        )
+        block = "## [Unreleased]\n\n### Fixed\n\n- bug\n"
+        new = build_changelog.write_unreleased(changelog, block)
+        assert "## [Unreleased]" in new
+        assert new.index("## [Unreleased]") < new.index("## [0.12.1]")
+        assert "- bug" in new
+
+    def test_replaces_existing_unreleased_block(self, tmp_path: Path) -> None:
+        changelog = tmp_path / "CHANGELOG.md"
+        changelog.write_text(
+            "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- old\n\n## [0.12.1] - 2026-05-18\n",
+            encoding="utf-8",
+        )
+        block = "## [Unreleased]\n\n### Added\n\n- new\n"
+        new = build_changelog.write_unreleased(changelog, block)
+        assert "- new" in new
+        assert "- old" not in new
+
+
 class TestMain:
     def test_main_with_commits_file(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -116,3 +141,22 @@ class TestMain:
         assert rc == 0
         text = changelog.read_text(encoding="utf-8")
         assert "## [0.13.0] - " in text
+
+    def test_main_write_unreleased_writes_changelog(self, tmp_path: Path) -> None:
+        changelog = tmp_path / "CHANGELOG.md"
+        changelog.write_text("# Changelog\n\n## [0.12.1] - 2026-05-18\n", encoding="utf-8")
+        commits = tmp_path / "commits.txt"
+        commits.write_text("fix: refresh badge\n", encoding="utf-8")
+        rc = build_changelog.main(
+            [
+                "--commits-file",
+                str(commits),
+                "--write-unreleased",
+                "--changelog",
+                str(changelog),
+            ]
+        )
+        assert rc == 0
+        text = changelog.read_text(encoding="utf-8")
+        assert "## [Unreleased]" in text
+        assert "- refresh badge" in text

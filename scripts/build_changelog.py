@@ -2,12 +2,15 @@
 
 Usage:
     python scripts/build_changelog.py --since vX.Y.Z
+    python scripts/build_changelog.py --since vX.Y.Z --write-unreleased
     python scripts/build_changelog.py --since vX.Y.Z --promote 0.13.0
     python scripts/build_changelog.py --commits-file <file>  # offline / tests
 
-The promote mode rewrites `CHANGELOG.md` in place, moving the current
-``[Unreleased]`` section to ``[X.Y.Z] - YYYY-MM-DD``. Without ``--promote``
-the script prints the markdown block to stdout (suitable for CI snippets).
+The write-unreleased mode refreshes the current ``[Unreleased]`` section in
+place from Conventional Commits. The promote mode rewrites ``CHANGELOG.md``
+in place, moving the current ``[Unreleased]`` section to
+``[X.Y.Z] - YYYY-MM-DD``. Without write/promote flags the script prints the
+markdown block to stdout (suitable for CI snippets).
 
 Implements Sprint-4 issue #13 (Coverage badge + CHANGELOG automation).
 """
@@ -37,6 +40,7 @@ GROUP_ORDER: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Chore", ("chore", "revert")),
     ("Other", ()),
 )
+UNRELEASED_RE = re.compile(r"(?ms)^## \[Unreleased\]\s*\n.*?(?=^## \[|\Z)")
 
 
 def _git_commits_since(ref: str | None) -> list[str]:
@@ -111,6 +115,21 @@ def promote_unreleased(changelog: Path, version: str, today: date | None = None)
     return new_text
 
 
+def write_unreleased(changelog: Path, block: str) -> str:
+    """Insert or replace the `[Unreleased]` section with the provided block."""
+    text = changelog.read_text(encoding="utf-8")
+    normalized = block.rstrip() + "\n\n"
+    match = UNRELEASED_RE.search(text)
+    if match:
+        return text[: match.start()] + normalized + text[match.end() :]
+
+    heading = re.search(r"^## \[[^\]]+\]", text, flags=re.MULTILINE)
+    if heading:
+        return text[: heading.start()] + normalized + text[heading.start() :]
+
+    return text.rstrip() + "\n\n" + normalized
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -126,6 +145,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--promote",
         metavar="VERSION",
         help="Rewrite CHANGELOG.md: rename [Unreleased] → [VERSION] - YYYY-MM-DD.",
+    )
+    parser.add_argument(
+        "--write-unreleased",
+        action="store_true",
+        help="Rewrite CHANGELOG.md: refresh the [Unreleased] block from commit history.",
     )
     parser.add_argument(
         "--changelog",
@@ -148,6 +172,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         commits = _git_commits_since(args.since)
 
     block = render_block(group_commits(commits))
+    if args.write_unreleased:
+        new = write_unreleased(args.changelog, block)
+        args.changelog.write_text(new, encoding="utf-8")
+        return 0
     sys.stdout.write(block)
     return 0
 

@@ -1,6 +1,6 @@
-# RELEASE — `<PRODUCT_NAME>`
+# RELEASE — `SendSprint`
 
-Processo para cortar uma release de `<PRODUCT_NAME>` (`<DOMAIN>`, stack `<STACK>`). Releases são tagueadas, automatizadas via GitHub Actions e reversíveis. Dono do processo: `<TEAM>`.
+Processo para cortar uma release do `SendSprint` (Python + Node tooling). Releases são tagueadas, automatizadas via GitHub Actions e reversíveis. Dono do processo: `@wesleysimplicio`.
 
 ---
 
@@ -24,24 +24,18 @@ Critério rápido:
 | Quebra de API, schema, contrato | MAJOR (`1.4.2` -> `2.0.0`) |
 | Pre-release, RC | sufixo (`1.5.0-rc.1`) |
 
-Local do número de versão depende do `<STACK>`:
-- Node: `package.json` campo `version`.
-- Python: `pyproject.toml` ou `__version__.py`.
-- Go: tag git é a versão (sem campo em arquivo).
-- Rust: `Cargo.toml` campo `version`.
-- .NET: `<Version>` no `.csproj` ou `Directory.Build.props`.
-- PHP/Laravel: `composer.json` campo `version`.
+No SendSprint, o número de versão precisa ficar alinhado em:
+- `pyproject.toml`
+- `sendsprint/__init__.py`
+- `package.json`
 
 Bump idempotente:
 
 ```bash
-# Node
-npm version minor --no-git-tag-version
-
-# Python (uv/poetry)
-uv version --bump minor
-
-# manual: edita arquivo, commita
+# Manual sync in this repo
+# - pyproject.toml
+# - sendsprint/__init__.py
+# - package.json
 ```
 
 ---
@@ -75,6 +69,14 @@ Regras:
 - `Security` ganha destaque, com CVE/advisory linkado.
 - Entrada referencia task ou PR (#numero).
 
+### Automação do SendSprint
+
+- `python scripts/build_changelog.py --since <tag> --write-unreleased` atualiza o bloco `## [Unreleased]` com Conventional Commits.
+- `python scripts/build_changelog.py --promote <version>` promove o bloco `Unreleased` para `## [<version>] - YYYY-MM-DD`.
+- `.github/workflows/release-hygiene.yml` roda isso automaticamente:
+  - em `push` para `main`, recalcula `docs/assets/coverage-badge.svg` e sincroniza o `Unreleased` quando existe tag base;
+  - em `push` de tag `v*.*.*`, promove o changelog para a versão recém-tagueada.
+
 ---
 
 ## 4. Criar tag
@@ -96,9 +98,26 @@ Tag deve apontar pro commit em que CHANGELOG e version foram atualizados. Não t
 
 ---
 
-## 5. Deploy automático via GitHub Actions
+## 5. Automação via GitHub Actions
 
-Push da tag dispara `.github/workflows/deploy-prod.yml`:
+No SendSprint, o fluxo atual é dividido assim:
+
+- `.github/workflows/release-hygiene.yml`
+  - gera / atualiza `docs/assets/coverage-badge.svg`;
+  - mantém `CHANGELOG.md` com bloco `[Unreleased]`;
+  - promove o changelog em pushes de tag `v*.*.*`.
+- `.github/workflows/pypi-publish.yml`
+  - publica no PyPI quando uma GitHub Release é publicada.
+
+Exemplo de refresh manual local:
+
+```bash
+pytest tests/ --cov=sendsprint --cov-report=xml:coverage.xml
+python scripts/generate_coverage_badge.py --coverage coverage.xml --output docs/assets/coverage-badge.svg
+python scripts/build_changelog.py --since v0.12.1 --write-unreleased
+```
+
+Publicação continua disparada pela release/tag:
 
 ```yaml
 on:
@@ -112,37 +131,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build artifact
-        run: <comando build do STACK>
-      - name: Push image / upload bundle
-        run: <comando push>
-      - name: Rollout production
-        run: <comando rollout>
-      - name: Smoke test
-        run: npm run test:smoke -- --baseUrl=https://<PRODUCT_NAME>.io
-      - name: Notify
-        run: <slack/discord/email pra TEAM>
+        run: python -m build
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@release/v1
 ```
 
 Acompanhar o run:
 
 ```bash
 gh run watch
-gh run list --workflow=deploy-prod.yml --limit 5
+gh run list --workflow=pypi-publish.yml --limit 5
 ```
 
 Falhou? Workflow é idempotente, pode re-rodar. Se rollout passou mas smoke falhou, etapa de rollback dispara automático (próxima seção).
 
 ---
 
-## 6. Smoke tests pós-deploy
+## 6. Smoke tests pós-release
 
 Pequeno conjunto de cenários críticos rodando contra produção logo após o rollout. Objetivo: detectar regressão grande em < 5min.
 
 Cobertura mínima:
-- Health check `/healthz` retorna 200.
-- Login com usuário de smoke completa fluxo.
-- 1 fluxo crítico de `<DOMAIN>` (ex: criar pedido, enviar mensagem, abrir conta).
-- Métrica de erro (Sentry, Datadog) não spikou nos últimos 2min.
+- `pytest tests/ --cov=sendsprint --cov-report=xml:coverage.xml`
+- `python scripts/generate_coverage_badge.py --coverage coverage.xml --output docs/assets/coverage-badge.svg`
+- `python scripts/build_changelog.py --since <última-tag> --write-unreleased`
+- `npm run test:e2e` quando houver `BASE_URL` disponível para o smoke web
 
 Smoke roda dentro do workflow `deploy-prod.yml`. Falha = rollback automático.
 

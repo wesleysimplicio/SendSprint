@@ -26,7 +26,7 @@ Lista priorizada de tudo que precisa ser feito no SendSprint. Fonte da verdade d
 | 4   | Deploy trigger + status callback to Jira/ADO ticket                  | P1         | sprint-2    | done   |
 | 5   | MCP server mode (expose SendSprint as MCP tool)                      | P1         | sprint-3    | done   |
 | 6   | Add Bun/Deno detectors to `tech/detector.py`                         | P2         | sprint-3    | done   |
-| 7   | Coverage badge + CHANGELOG automation in CI                          | P2         | sprint-4    | doing  |
+| 7   | Coverage badge + CHANGELOG automation in CI                          | P2         | sprint-4    | done   |
 | 8   | Telemetry (opt-in) for step duration histograms                      | P2         | backlog     | done   |
 
 ## Histórico recente (últimos done)
@@ -48,4 +48,3 @@ Lista priorizada de tudo que precisa ser feito no SendSprint. Fonte da verdade d
 ## Próximas decisões pendentes
 
 - Validar `ralph run --max-iterations 5` fim a fim para item #2 sem depender de serviços externos.
-- Completar a automação do badge de coverage no item #7 e expor o SVG no README.

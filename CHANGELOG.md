@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### CI
+
+- release: refresh coverage badge and changelog
+
+## [0.12.2] - 2026-05-18
+
+### Added
+
+- `scripts/generate_coverage_badge.py` to render a local SVG coverage badge from `coverage.xml`.
+- `.github/workflows/release-hygiene.yml` to refresh `docs/assets/coverage-badge.svg` on `main` and promote `CHANGELOG.md` entries on `v*.*.*` tag pushes.
+- `tests/test_coverage_badge.py` plus new `tests/test_build_changelog.py` coverage for `[Unreleased]` write-back automation.
+
+### Changed
+
+- `README.md` now embeds the generated coverage badge at the top and documents release hygiene as part of the shipped status line.
+- `scripts/build_changelog.py` can now rewrite the `[Unreleased]` block in place before promoting tagged releases.
+- Bumped package metadata to `0.12.2` for the Sprint 4 release-hygiene automation pass.
+
 ## [0.12.1] - 2026-05-18
 
 ### Changed

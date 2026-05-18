@@ -1,5 +1,7 @@
 # SendSprint
 
+![Coverage](./docs/assets/coverage-badge.svg)
+
 <p align="center">
   <img src="./docs/assets/sendsprint-hero.png" alt="SendSprint turns sprint work into validated pull requests" />
 </p>
@@ -85,7 +87,7 @@ See [`web/README.md`](./web/README.md) for the full walkthrough and
 
 Works across **13 AI coding tools**: Claude Code, Codex CLI, GitHub Copilot, Cursor, Windsurf, Kiro, Zed, Cline, Continue, Aider, Sourcegraph Cody, Hermes, Openclaw.
 
-> **Status:** v0.12.1 — Chat-triggered one-command UX (`sendsprint sprint`). 13 IDE manifests. OS-keyring credential cache. Azure DevOps MCP installer. Auto-scaffold `.specs` plus latest `agentic-starter` sync. Full 10-step flow. Preflight, dry-run delivery plans, resumable run state, confidence routing, required PR reviewers, and post-PR validation are built in. Product visuals, before/after Remotion explainers with music and sound effects, and bilingual implementation decks are bundled. Branches default to `feature/{number}-{title}` and PRs target `develop`; both can be configured. Azure backlog hierarchy checks prevent invalid Issue -> Task parent links. Jira/Azure DevOps core guide is bundled for stable delivery rules. PyPI publishing is automated on release tags.
+> **Status:** v0.12.2 — Chat-triggered one-command UX (`sendsprint sprint`). 13 IDE manifests. OS-keyring credential cache. Azure DevOps MCP installer. Auto-scaffold `.specs` plus latest `agentic-starter` sync. Full 10-step flow. Preflight, dry-run delivery plans, resumable run state, confidence routing, required PR reviewers, and post-PR validation are built in. Product visuals, before/after Remotion explainers with music and sound effects, and bilingual implementation decks are bundled. Branches default to `feature/{number}-{title}` and PRs target `develop`; both can be configured. Azure backlog hierarchy checks prevent invalid Issue -> Task parent links. Jira/Azure DevOps core guide is bundled for stable delivery rules. Coverage badge generation and changelog promotion are now automated in GitHub Actions. PyPI publishing is automated on release tags.
 
 ---
 
