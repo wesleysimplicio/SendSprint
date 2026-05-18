@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- sprint-2: wire codegen and deploy callbacks
 - flow: ship codegen and deploy hooks
 - mcp: expose stdio server command
 - implement sprint-1 through backlog issues (#4-#15)
@@ -25,6 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Docs
 
+- release: record sprint-1 blocker evidence
 - sprint: clarify ralph goal pilot
 - badge: refresh coverage snapshot
 - roadmap: sync delivered sprint state
@@ -34,6 +36,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
