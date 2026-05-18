@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.1] - 2026-05-18
+
+### Changed
+
+- Synchronized `.specs/sprints/BACKLOG.md` and `.specs/sprints/sprint-1/SPRINT.md` with the work already delivered on `main`, marking Sprint 1 pipeline adoption as done and keeping the Ralph validation item explicit as the remaining open sprint-1 task.
+- Marked `.specs/sprints/sprint-1/01-add-bun-detector.task.md` and `.specs/sprints/sprint-1/02-add-cargo-audit-tests.task.md` as `done` so the task specs match the GitHub issue state for #4, #5, and #6.
+- Bumped package metadata to `0.12.1` after the roadmap/documentation synchronization pass.
+
 ## [0.12.0] - 2026-05-18
 
 ### Added

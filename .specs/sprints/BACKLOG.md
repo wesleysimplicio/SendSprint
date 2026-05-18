@@ -20,19 +20,25 @@ Lista priorizada de tudo que precisa ser feito no SendSprint. Fonte da verdade d
 
 | #   | Título                                                               | Prioridade | Sprint alvo | Status |
 | --- | -------------------------------------------------------------------- | ---------- | ----------- | ------ |
-| 1   | Adopt agentic-starter pipeline (specs, skills, dod, ralph)           | P0         | sprint-1    | doing  |
-| 2   | Validate Ralph autonomous loop against sprint-1 tasks                | P0         | sprint-1    | todo   |
-| 3   | LLM-powered code generation per sprint item                          | P1         | sprint-2    | todo   |
-| 4   | Deploy trigger + status callback to Jira/ADO ticket                  | P1         | sprint-2    | todo   |
-| 5   | MCP server mode (expose SendSprint as MCP tool)                      | P1         | sprint-3    | todo   |
-| 6   | Add Bun/Deno detectors to `tech/detector.py`                         | P2         | sprint-3    | todo   |
-| 7   | Coverage badge + CHANGELOG automation in CI                          | P2         | sprint-4    | todo   |
-| 8   | Telemetry (opt-in) for step duration histograms                      | P2         | backlog     | todo   |
+| 1   | Adopt agentic-starter pipeline (specs, skills, dod, ralph)           | P0         | sprint-1    | done   |
+| 2   | Validate Ralph autonomous loop against sprint-1 tasks                | P0         | sprint-1    | doing  |
+| 3   | LLM-powered code generation per sprint item                          | P1         | sprint-2    | done   |
+| 4   | Deploy trigger + status callback to Jira/ADO ticket                  | P1         | sprint-2    | done   |
+| 5   | MCP server mode (expose SendSprint as MCP tool)                      | P1         | sprint-3    | done   |
+| 6   | Add Bun/Deno detectors to `tech/detector.py`                         | P2         | sprint-3    | done   |
+| 7   | Coverage badge + CHANGELOG automation in CI                          | P2         | sprint-4    | doing  |
+| 8   | Telemetry (opt-in) for step duration histograms                      | P2         | backlog     | done   |
 
 ## Histórico recente (últimos done)
 
 | #   | Título                                                       | Sprint     | Concluído em |
 | --- | ------------------------------------------------------------ | ---------- | ------------ |
+| 8   | Telemetry (opt-in) for step duration histograms              | backlog    | 2026-05-18   |
+| 6   | Add Bun/Deno detectors to `tech/detector.py`                 | sprint-3   | 2026-05-18   |
+| 5   | MCP server mode (expose SendSprint as MCP tool)              | sprint-3   | 2026-05-18   |
+| 4   | Deploy trigger + status callback to Jira/ADO ticket          | sprint-2   | 2026-05-18   |
+| 3   | LLM-powered code generation per sprint item                  | sprint-2   | 2026-05-18   |
+| 1   | Adopt agentic-starter pipeline (specs, skills, dod, ralph)  | sprint-1   | 2026-05-18   |
 | 0   | v0.4.0 — chat-trigger UX + 8 IDE manifests + OS-keyring     | sprint-0   | 2026-05-07   |
 
 ## Itens descartados ou movidos pra fora
@@ -41,6 +47,5 @@ Lista priorizada de tudo que precisa ser feito no SendSprint. Fonte da verdade d
 
 ## Próximas decisões pendentes
 
-- Provedor LLM padrão para item #3 (Anthropic? OpenAI? local?). Depende de ADR.
-- Estratégia de retries para item #4 (idempotência do callback).
-- Schema MCP do item #5 (alinhar com `mcp-server-patterns`).
+- Validar `ralph run --max-iterations 5` fim a fim para item #2 sem depender de serviços externos.
+- Completar a automação do badge de coverage no item #7 e expor o SVG no README.

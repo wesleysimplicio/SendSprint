@@ -32,8 +32,8 @@ A sprint só fecha como `done` quando os 4 entregáveis estão cumpridos:
 
 | Arquivo                                       | Status | Owner                  |
 | --------------------------------------------- | ------ | ---------------------- |
-| `01-add-bun-detector.task.md`                 | todo   | @sendsprint-core       |
-| `02-add-cargo-audit-tests.task.md`            | todo   | @sendsprint-core       |
+| `01-add-bun-detector.task.md`                 | done   | @sendsprint-core       |
+| `02-add-cargo-audit-tests.task.md`            | done   | @sendsprint-core       |
 
 ## Riscos
 
@@ -49,7 +49,7 @@ A sprint só fecha como `done` quando os 4 entregáveis estão cumpridos:
 
 ## Critérios de pronto da sprint
 
-- [ ] As 2 tasks com status `done` no `BACKLOG.md`.
+- [x] As 2 tasks com status `done` no `BACKLOG.md`.
 - [ ] CI verde nos PRs de ambas as tasks.
 - [ ] Ralph completa `ralph run --max-iterations 5` sem erro de configuração.
 - [ ] Demo registrada em `presentation/` (opcional).

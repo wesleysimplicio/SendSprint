@@ -3,7 +3,7 @@ id: TASK-002
 title: Add cargo-audit coverage tests to security reviewer
 sprint: sprint-1
 owner: @sendsprint-core
-status: todo
+status: done
 ---
 
 # TASK-002 — Add cargo-audit coverage tests to security reviewer

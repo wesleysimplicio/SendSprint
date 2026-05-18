@@ -3,7 +3,7 @@ id: TASK-001
 title: Add Bun runtime marker to tech detector
 sprint: sprint-1
 owner: @sendsprint-core
-status: todo
+status: done
 ---
 
 # TASK-001 — Add Bun runtime marker to tech detector
