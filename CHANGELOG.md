@@ -8,11 +8,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Docs
 
-- architecture: add C4 system, container, and component maps
+- add C4 architecture maps
 - changelog: promote 0.14.0
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - add PyPI token fallback
 
 ## [0.14.0] - 2026-05-18
