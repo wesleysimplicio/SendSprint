@@ -8,13 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- add built-in multi-agent provider registry with capability metadata for Codex, Claude Code, Hermes Agent, and OpenClaw
-- detect `llm-project-mapper` repositories as a first-class mapping substrate with `.skills/` and `.agents/` awareness
-
-### Changed
-
-- validate control-plane worker claims against the registered provider and capability catalog
-- include the mapping substrate in SprintFlow architecture step reporting
+- add agent registry foundations
 
 ### Docs
 
@@ -23,6 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - add PyPI token fallback
 
