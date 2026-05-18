@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- types: satisfy sprint flow mypy checks
+
 ### Docs
 
 - roadmap: link sprint autopilot issues
@@ -14,15 +18,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - node: fix root lockfile setup
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - publish: use PyPI token secret
-
-### Fixed
-
-- Fix mypy coverage for LLM code generation provider typing and CLI config override dictionaries.
 
 ## [0.13.0] - 2026-05-18
 
