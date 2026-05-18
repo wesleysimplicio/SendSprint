@@ -36,7 +36,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: |
@@ -45,6 +44,10 @@ jobs:
           else
             npm install --no-audit --no-fund
           fi
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
 
       - name: Run lint
         run: npm run lint
@@ -67,7 +70,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
 
       - name: Install dependencies
         run: |
@@ -107,7 +109,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
 
       - name: Install dependencies
         run: |

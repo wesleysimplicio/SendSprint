@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- ci: fix legacy Node workflow lockfile handling
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - publish: use PyPI token secret
