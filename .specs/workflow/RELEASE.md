@@ -111,8 +111,8 @@ No SendSprint, o fluxo atual é dividido assim:
 
 ### PyPI Trusted Publishing
 
-O workflow de produção não deve usar `PYPI_API_TOKEN`. A configuração esperada
-no PyPI para o projeto `sendsprint` é:
+O caminho primário do workflow é Trusted Publishing. A configuração esperada no
+PyPI para o projeto `sendsprint` é:
 
 | Claim | Valor |
 |---|---|
@@ -131,6 +131,10 @@ permissions:
 ```
 
 E a ação `pypa/gh-action-pypi-publish@release/v1` sem `password`.
+
+Enquanto a configuração externa do PyPI ainda não existir ou não casar com as
+claims acima, o workflow pode usar `PYPI_API_TOKEN` como fallback controlado para
+desbloquear uma release. Esse fallback só roda quando a troca OIDC falha.
 
 Exemplo de refresh manual local:
 
