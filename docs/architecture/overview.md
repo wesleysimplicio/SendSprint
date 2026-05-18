@@ -11,6 +11,8 @@ summarizes where each feature should land and which tests usually guard it.
 - Dashboard app: `web/`.
 - Video/demo assets: `video/`.
 - Product contract: `.specs/`, `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`.
+- C4 maps: `docs/c4/system-context.md`, `docs/c4/containers.md`,
+  `docs/c4/components.md`.
 
 ## Feature Entry Points
 

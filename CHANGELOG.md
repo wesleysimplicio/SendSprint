@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Docs
 
+- architecture: add C4 system, container, and component maps
 - changelog: promote 0.14.0
 
 ### CI
