@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- rollback and safe-exit plan generator (closes #58)
 - add agent registry foundations
 
 ### Docs
@@ -18,6 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
