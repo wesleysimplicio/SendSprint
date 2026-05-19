@@ -6,6 +6,7 @@ from pathlib import Path
 
 from sendsprint.models import Sprint, SprintItem
 from sendsprint.models.reports import StepReport
+from sendsprint.rollback import RollbackPlan, pr_body_rollback_section
 
 
 def _evidence_for_repo(steps: list[StepReport], repo: str) -> list[str]:
@@ -65,6 +66,7 @@ class PrBodyBuilder:
         repo_name: str,
         steps: list[StepReport],
         sprint_slug: str | None = None,
+        rollback: RollbackPlan | None = None,
     ) -> str:
         evidence = _evidence_for_repo(steps, repo_name)
         findings = _findings_for_repo(steps, repo_name)
@@ -73,6 +75,7 @@ class PrBodyBuilder:
         slug = sprint_slug or f"sprint-{sprint.id}"
         evidence_block = "\n".join(evidence) if evidence else "_(no evidence captured)_"
         findings_block = "\n".join(findings) if findings else "_(none)_"
+        rollback_block = pr_body_rollback_section(rollback) if rollback is not None else ""
 
         return f"""## Summary
 
@@ -99,6 +102,7 @@ Automated PR for sprint `{sprint.name}` ({sprint.source}).
 
 {findings_block}
 
+{rollback_block}
 ## Definition of Done
 
 - [ ] Sprint specs imported under `.specs/sprints/{slug}/`

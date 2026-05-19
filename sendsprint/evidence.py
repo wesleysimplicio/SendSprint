@@ -10,6 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from sendsprint.models.reports import RunReport
 from sendsprint.planning import DeliveryPlan
+from sendsprint.rollback import RollbackPlan
+from sendsprint.rollback import evidence_filename as _rollback_filename
 
 
 class EvidenceFile(BaseModel):
@@ -45,6 +47,7 @@ def create_evidence_bundle(
     command_logs: list[Path] | None = None,
     extra_files: list[Path] | None = None,
     issue_updates: list[str] | None = None,
+    rollback: RollbackPlan | None = None,
 ) -> EvidenceBundleManifest:
     """Create a portable evidence bundle and return its manifest."""
     run_id = report.sprint_id or "run"
@@ -60,6 +63,11 @@ def create_evidence_bundle(
         plan_path = root / "dry-run-plan.json"
         plan_path.write_text(plan.model_dump_json(indent=2), encoding="utf-8")
         files.append(EvidenceFile(kind="dry-run-plan", path=plan_path.name))
+
+    if rollback is not None:
+        rollback_path = root / _rollback_filename(rollback.run_id or run_id)
+        rollback_path.write_text(rollback.model_dump_json(indent=2), encoding="utf-8")
+        files.append(EvidenceFile(kind="rollback-plan", path=rollback_path.name))
 
     for source in command_logs or []:
         files.append(_copy_into(root, source, "command-log"))
