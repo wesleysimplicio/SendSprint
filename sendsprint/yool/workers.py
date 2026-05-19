@@ -18,6 +18,7 @@ from .budgets import BudgetExceeded
 from .bus import TupleBus
 from .catalog_v2 import YoolEntry, lookup_yool
 from .dispatcher import Dispatcher
+from .receipts import Receipt, sha256_canonical
 from .tuples import Tuple, TupleLog, emit_tuple
 
 LOG = logging.getLogger(__name__)
@@ -77,17 +78,25 @@ class Worker:
                 self.dispatcher.dispatch,
                 entry,
                 tup.payload,
-                no_cache=False,
+                no_cache=self._no_cache(tup),
                 agent_terms=tup.agent_terms,
             )
         except BudgetExceeded as exc:
             self.stats.budget_exceeded += 1
-            self.log.update_status(tup.id, "err.budget")
+            self.log.update_status(
+                tup.id,
+                "err.budget",
+                receipt_id=self._latest_receipt_id(entry.yool_id, tup.payload),
+            )
             LOG.warning("budget exceeded on %s: %s", tup.yool_id, exc)
             return
         except Exception as exc:  # noqa: BLE001
             self.stats.failed += 1
-            self.log.update_status(tup.id, "err")
+            self.log.update_status(
+                tup.id,
+                "err",
+                receipt_id=self._latest_receipt_id(entry.yool_id, tup.payload),
+            )
             LOG.exception("worker %s failed on %s: %s", self.lane, tup.yool_id, exc)
             return
 
@@ -108,6 +117,25 @@ class Worker:
             self.log.append(child)
             await self.bus.publish(child)
 
+    def _latest_receipt_id(self, yool_id: str, payload: Any) -> str | None:
+        input_id = sha256_canonical(payload)
+        matches = [
+            receipt
+            for receipt in self.dispatcher.store.all()
+            if receipt.yool_id == yool_id and receipt.input_id == input_id
+        ]
+        if not matches:
+            return None
+        latest = max(matches, key=_receipt_sort_key)
+        return latest.id
+
+    def _no_cache(self, tup: Tuple) -> bool:
+        if tup.meta.get("no_cache"):
+            return True
+        if isinstance(tup.payload, dict):
+            return bool(tup.payload.get("no_cache"))
+        return False
+
 
 class WorkerPool:
     """Lane-keyed pool that runs each Worker as an asyncio task."""
@@ -125,6 +153,19 @@ class WorkerPool:
         for lane, worker in self._workers.items():
             self._tasks[lane] = asyncio.create_task(worker.run(), name=f"worker:{lane}")
 
+    async def run_until_idle(
+        self, *, bus: TupleBus, seed: Iterable[Tuple] | None = None
+    ) -> None:
+        seed = list(seed or ())
+        self.start()
+        try:
+            for tup in seed:
+                await bus.publish(tup)
+            await bus.drain()
+            await self.join()
+        finally:
+            await self.shutdown()
+
     async def join(self) -> None:
         if not self._tasks:
             return
@@ -140,3 +181,7 @@ class WorkerPool:
 
     def stats(self) -> dict[str, WorkerStats]:
         return {lane: w.stats for lane, w in self._workers.items()}
+
+
+def _receipt_sort_key(receipt: Receipt) -> tuple[str, str, str]:
+    return (receipt.ended_at, receipt.started_at, receipt.id)

@@ -38,6 +38,7 @@ def test_receipt_store_put_get_and_idempotent_rewrite(tmp_path: Path) -> None:
         yool_id="agent.dev.python.v1",
         input_id=f"sha256:{'2' * 64}",
         output_id=f"sha256:{'3' * 64}",
+        output_payload={"status": "ok"},
         started_at="2026-05-19T19:00:00.000000Z",
         ended_at="2026-05-19T19:00:01.000000Z",
     )
@@ -76,6 +77,7 @@ def test_receipt_store_find_by_input_prefers_latest_success_after_reload(tmp_pat
         yool_id="agent.dev.python.v1",
         input_id=input_id,
         output_id=f"sha256:{'4' * 64}",
+        output_payload={"version": "old"},
         started_at="2026-05-19T19:10:00.000000Z",
         ended_at="2026-05-19T19:10:01.000000Z",
     )
@@ -84,6 +86,7 @@ def test_receipt_store_find_by_input_prefers_latest_success_after_reload(tmp_pat
         yool_id="agent.dev.python.v1",
         input_id=input_id,
         output_id=f"sha256:{'5' * 64}",
+        output_payload={"version": "new"},
         started_at="2026-05-19T19:11:00.000000Z",
         ended_at="2026-05-19T19:11:01.000000Z",
     )
@@ -116,10 +119,7 @@ def test_dispatcher_cache_miss_then_hit_avoids_second_executor_call(tmp_path: Pa
     assert first.output == {"doubled": 42}
     assert second.cached is True
     assert second.receipt.id == first.receipt.id
-    assert second.output == {
-        "output_id": first.receipt.output_id,
-        "from_receipt": first.receipt.id,
-    }
+    assert second.output == {"doubled": 42}
     assert calls == [{"value": 21}]
 
 

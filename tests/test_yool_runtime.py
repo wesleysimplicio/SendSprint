@@ -3,15 +3,24 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 from sendsprint.yool.bus import TupleBus
 from sendsprint.yool.catalog_v2 import yool_hash, yool_slots
 from sendsprint.yool.dispatcher import Dispatcher
 from sendsprint.yool.receipts import ReceiptStore
-from sendsprint.yool.runtime import dispatch_yool, inspect_run, resume_run
+from sendsprint.yool.runtime import (
+    dispatch_yool,
+    inspect_run,
+    resume_run,
+    run_worker_pool,
+)
 from sendsprint.yool.tuples import TupleLog, emit_tuple
-from sendsprint.yool.workers import Worker
+from sendsprint.yool.workers import Worker, WorkerPool
 
 
 def _write_catalog(tmp_path: Path, yool_id: str = "agent.codex.plan") -> Path:
@@ -142,3 +151,173 @@ def test_tuple_bus_preserves_order_within_lane() -> None:
 
     asyncio.run(scenario())
     assert seen == [1, 2]
+
+
+def test_worker_records_error_receipt_on_tuple_status(tmp_path: Path) -> None:
+    catalog = json.loads(_write_catalog(tmp_path).read_text(encoding="utf-8"))
+    bus = TupleBus()
+    log = TupleLog("run-err", tmp_path / ".sendsprint" / "tuples")
+    store = ReceiptStore(tmp_path / ".sendsprint" / "receipts")
+
+    def executor(_entry, _payload):
+        raise RuntimeError("boom")
+
+    dispatcher = Dispatcher(store=store, executor=executor)
+    worker = Worker(
+        lane="dev",
+        bus=bus,
+        log=log,
+        catalog=catalog,
+        dispatcher=dispatcher,
+        run_id="run-err",
+    )
+    pool = WorkerPool()
+    pool.add(worker)
+
+    parent = emit_tuple(
+        yool_id="agent.codex.plan",
+        lane="dev",
+        payload={"task": "explode"},
+        run_id="run-err",
+    )
+    log.append(parent)
+
+    run_worker_pool(pool, bus=bus, run_id="run-err", tuple_root=log.root, receipt_root=store.root)
+
+    tuple_state = {item.id: item for item in log.tuples()}[parent.id]
+    assert tuple_state.status == "err"
+    assert tuple_state.receipt_id is not None
+
+    receipt = store.get(tuple_state.receipt_id)
+    assert receipt is not None
+    assert receipt.status == "err"
+    assert receipt.err == "RuntimeError: boom"
+
+
+def test_run_worker_pool_replays_pending_tuples_and_returns_stats(tmp_path: Path) -> None:
+    catalog = json.loads(_write_catalog(tmp_path).read_text(encoding="utf-8"))
+    bus = TupleBus()
+    tuple_root = tmp_path / ".sendsprint" / "tuples"
+    receipt_root = tmp_path / ".sendsprint" / "receipts"
+    log = TupleLog("run-pool", tuple_root)
+    store = ReceiptStore(receipt_root)
+
+    def executor(entry, payload):
+        return {"handled": entry.yool_id, "payload": payload}
+
+    dispatcher = Dispatcher(store=store, executor=executor)
+    worker = Worker(
+        lane="dev",
+        bus=bus,
+        log=log,
+        catalog=catalog,
+        dispatcher=dispatcher,
+        run_id="run-pool",
+        follow_up=lambda _t, _o: [("agent.codex.plan", "review", {"child": True})],
+    )
+    review_worker = Worker(
+        lane="review",
+        bus=bus,
+        log=log,
+        catalog=catalog,
+        dispatcher=dispatcher,
+        run_id="run-pool",
+    )
+    pool = WorkerPool()
+    pool.add(worker)
+    pool.add(review_worker)
+
+    parent = emit_tuple(
+        yool_id="agent.codex.plan",
+        lane="dev",
+        payload={"task": 1},
+        run_id="run-pool",
+    )
+    log.append(parent)
+
+    inspected = run_worker_pool(
+        pool,
+        bus=bus,
+        run_id="run-pool",
+        tuple_root=tuple_root,
+        receipt_root=receipt_root,
+    )
+
+    assert inspected["seed_ids"] == [parent.id]
+    assert inspected["pending_ids"] == []
+    assert inspected["worker_stats"]["dev"]["consumed"] == 1
+    assert inspected["worker_stats"]["review"]["consumed"] == 1
+    assert len(inspected["receipts"]) == 2
+
+
+def test_resume_after_kill_replays_pending_tuple(tmp_path: Path) -> None:
+    catalog = json.loads(_write_catalog(tmp_path).read_text(encoding="utf-8"))
+    tuple_root = tmp_path / ".sendsprint" / "tuples"
+    receipt_root = tmp_path / ".sendsprint" / "receipts"
+    script = tmp_path / "seed_and_sleep.py"
+    script.write_text(
+        (
+            "import time\n"
+            "from pathlib import Path\n"
+            "from sendsprint.yool.tuples import TupleLog, emit_tuple\n\n"
+            f"tuple_root = Path(r\"{tuple_root}\")\n"
+            "log = TupleLog('run-kill', tuple_root)\n"
+            "tup = emit_tuple(\n"
+            "    yool_id='agent.codex.plan',\n"
+            "    lane='dev',\n"
+            "    payload={'task': 'resume'},\n"
+            "    run_id='run-kill',\n"
+            ")\n"
+            "log.append(tup)\n"
+            "time.sleep(30)\n"
+        ),
+        encoding="utf-8",
+    )
+
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in [str(Path.cwd()), env.get("PYTHONPATH", "")] if part
+    )
+    proc = subprocess.Popen([sys.executable, str(script)], cwd=str(tmp_path), env=env)
+    try:
+        deadline = time.time() + 10
+        log_path = tuple_root / "run-kill.ndjson"
+        while time.time() < deadline and not log_path.exists():
+            time.sleep(0.1)
+        assert log_path.exists()
+    finally:
+        proc.kill()
+        proc.wait(timeout=10)
+
+    replay = resume_run("run-kill", tuple_root=tuple_root)
+    assert replay["re_emitted"] == 1
+
+    bus = TupleBus()
+    log = TupleLog("run-kill", tuple_root)
+    store = ReceiptStore(receipt_root)
+
+    def executor(entry, payload):
+        return {"handled": entry.yool_id, "payload": payload}
+
+    dispatcher = Dispatcher(store=store, executor=executor)
+    worker = Worker(
+        lane="dev",
+        bus=bus,
+        log=log,
+        catalog=catalog,
+        dispatcher=dispatcher,
+        run_id="run-kill",
+    )
+    pool = WorkerPool()
+    pool.add(worker)
+
+    inspected = run_worker_pool(
+        pool,
+        bus=bus,
+        run_id="run-kill",
+        tuple_root=tuple_root,
+        receipt_root=receipt_root,
+    )
+
+    assert inspected["pending_ids"] == []
+    assert inspected["worker_stats"]["dev"]["consumed"] == 1

@@ -76,7 +76,7 @@ class Watcher:
         operator: BaseOperator | None = None,
         autonomy_policy: AutonomyPolicy | None = None,
         transport: Transport = "auto",
-        flow_factory: Callable[..., SprintFlow] = SprintFlow,
+        flow_factory: Callable[..., Any] = SprintFlow,
         state_store: WatchStateStore | None = None,
     ) -> None:
         self.workspace = workspace
@@ -349,13 +349,22 @@ class Watcher:
             autonomy_policy=self.autonomy_policy,
         )
         dry_run = not self.autonomy_policy.allows("write-files")
-        return flow.run(
-            sprint_id=self.config.sprint_id,
-            iteration_path=self.config.iteration_path,
-            dry_run=dry_run,
-            resume=True,
-            run_id=run_id,
-        )
+        run_kwargs = {
+            "sprint_id": self.config.sprint_id,
+            "iteration_path": self.config.iteration_path,
+            "dry_run": dry_run,
+            "resume": True,
+            "run_id": run_id,
+        }
+        bootstrap = getattr(flow, "bootstrap", None)
+        if callable(bootstrap):
+            return bootstrap(**run_kwargs)
+        run = getattr(flow, "run", None)
+        if callable(run):
+            return run(**run_kwargs)
+        if callable(flow):
+            return flow(**run_kwargs)
+        raise TypeError("watch flow_factory must return a runtime with bootstrap() or run()")
 
     def _write_evidence(self, run_id: str, flow_result: Any) -> None:
         run_dir = self._runs_root() / run_id

@@ -69,3 +69,16 @@ Next: continue on the structural refactor issues `#84` and `#88`, then close the
 | `python -m ruff check sendsprint tests` | pass | full lint green |
 | `npm run lint` | pass | `web` typecheck green |
 | `npm run test:e2e` | pass | `6 skipped` smoke suite as configured |
+
+
+### Checkpoint 5
+
+Status: completed
+
+Task: Finish the structural tuple-runtime migration, prove cache/resume behavior, and close the remaining GitHub issues.
+
+Result: Rewired `SprintFlow` so the main execution path now bootstraps worker-root tuples and runs `dev -> lint -> test -> security -> pr` through `WorkerPool` lanes. Added cached receipt payload materialization for cross-run reuse, tuple-id aware resume CLI resolution, a kill-and-resume harness, cross-run cache regression coverage, and updated `README.md` / `ARCHITECTURE.md` to document the new runtime-first path.
+
+Validation: `python -m pytest tests -q`; `python -m ruff check sendsprint tests`; `npm run lint`; `npm run test:e2e`.
+
+Next: close `#84`, `#88`, and `#76`, then commit and push.

@@ -146,4 +146,6 @@ class Dispatcher:
         )
 
     def _materialise_cached_output(self, receipt: Receipt) -> Any:
+        if receipt.output_payload is not None:
+            return receipt.output_payload
         return {"output_id": receipt.output_id, "from_receipt": receipt.id}

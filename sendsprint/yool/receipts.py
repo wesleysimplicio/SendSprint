@@ -50,6 +50,7 @@ class Receipt:
     yool_id: str
     input_id: str
     output_id: str | None
+    output_payload: Any | None
     started_at: str
     ended_at: str
     cost: ReceiptCost = field(default_factory=ReceiptCost)
@@ -62,6 +63,7 @@ class Receipt:
             "yool_id": self.yool_id,
             "input_id": self.input_id,
             "output_id": self.output_id,
+            "output_payload": self.output_payload,
             "started_at": self.started_at,
             "ended_at": self.ended_at,
             "cost": self.cost.to_dict(),
@@ -77,6 +79,7 @@ class Receipt:
             yool_id=data["yool_id"],
             input_id=data["input_id"],
             output_id=data.get("output_id"),
+            output_payload=data.get("output_payload"),
             started_at=data["started_at"],
             ended_at=data["ended_at"],
             cost=cost,
@@ -194,6 +197,7 @@ def write_ok_receipt(
         yool_id=yool_id,
         input_id=input_id,
         output_id=output_id,
+        output_payload=output_payload,
         started_at=started_at,
         ended_at=ended_at,
         cost=cost or ReceiptCost(),
@@ -224,6 +228,7 @@ def write_err_receipt(
         yool_id=yool_id,
         input_id=input_id,
         output_id=None,
+        output_payload=None,
         started_at=started_at,
         ended_at=ended_at,
         cost=cost or ReceiptCost(),

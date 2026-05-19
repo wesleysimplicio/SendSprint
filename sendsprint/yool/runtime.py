@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from . import DEFAULT_AGENT_CATALOG_PATH, DEFAULT_RECEIPT_ROOT, DEFAULT_TUPLE_ROOT
+from .bus import TupleBus
 from .catalog_v2 import CatalogError, load_catalog, lookup_yool
 from .receipts import ReceiptStore
 from .tuples import (
@@ -19,6 +21,7 @@ from .tuples import (
     make_run_id,
     render_ascii_tree,
 )
+from .workers import WorkerPool, WorkerStats
 
 
 def ensure_catalog(path: str | Path = DEFAULT_AGENT_CATALOG_PATH) -> dict[str, Any]:
@@ -151,6 +154,49 @@ def parse_payload(raw: str) -> Any:
         raise ValueError(f"payload must be valid JSON: {exc}") from exc
 
 
+async def run_worker_pool_async(
+    pool: WorkerPool,
+    *,
+    bus: TupleBus,
+    run_id: str,
+    tuple_root: str | Path = DEFAULT_TUPLE_ROOT,
+    receipt_root: str | Path = DEFAULT_RECEIPT_ROOT,
+    seed: list[Tuple] | None = None,
+) -> dict[str, Any]:
+    log = TupleLog(run_id, tuple_root)
+    pending = list(seed) if seed is not None else log.pending()
+    if pending and not pool.stats():
+        raise ValueError("worker pool has no workers for pending tuples")
+    await pool.run_until_idle(bus=bus, seed=pending)
+    inspected = inspect_run(run_id, tuple_root=tuple_root, receipt_root=receipt_root)
+    inspected["seed_ids"] = [t.id for t in pending]
+    inspected["worker_stats"] = {
+        lane: worker_stats_summary(stats) for lane, stats in pool.stats().items()
+    }
+    return inspected
+
+
+def run_worker_pool(
+    pool: WorkerPool,
+    *,
+    bus: TupleBus,
+    run_id: str,
+    tuple_root: str | Path = DEFAULT_TUPLE_ROOT,
+    receipt_root: str | Path = DEFAULT_RECEIPT_ROOT,
+    seed: list[Tuple] | None = None,
+) -> dict[str, Any]:
+    return asyncio.run(
+        run_worker_pool_async(
+            pool,
+            bus=bus,
+            run_id=run_id,
+            tuple_root=tuple_root,
+            receipt_root=receipt_root,
+            seed=seed,
+        )
+    )
+
+
 def tuple_summary(tup: Tuple) -> dict[str, Any]:
     return {
         "id": tup.id,
@@ -163,4 +209,14 @@ def tuple_summary(tup: Tuple) -> dict[str, Any]:
         "payload": tup.payload,
         "agent_terms": tup.agent_terms.to_dict(),
         "meta": tup.meta,
+    }
+
+
+def worker_stats_summary(stats: WorkerStats) -> dict[str, int]:
+    return {
+        "consumed": stats.consumed,
+        "cached": stats.cached,
+        "succeeded": stats.succeeded,
+        "failed": stats.failed,
+        "budget_exceeded": stats.budget_exceeded,
     }

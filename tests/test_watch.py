@@ -41,6 +41,19 @@ class FakeFlow:
         return SimpleNamespace(run_report=None, delivery_plan=None, notes=[])
 
 
+class FakeBootstrapRuntime:
+    init_calls: list[dict[str, object]] = []
+    bootstrap_calls: list[dict[str, object]] = []
+
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.init_calls.append(kwargs)
+
+    def bootstrap(self, **kwargs):
+        self.bootstrap_calls.append({"init": self.kwargs, "bootstrap": kwargs})
+        return SimpleNamespace(run_report=None, delivery_plan=None, notes=[])
+
+
 def _item(
     key: str,
     *,
@@ -162,6 +175,31 @@ def test_watch_dry_run_lists_without_writing_state(tmp_path: Path) -> None:
     assert len(result.eligible) == 1
     assert len(result.processed) == 0
     assert not (tmp_path / ".sendsprint" / "runs" / "watch-state.json").exists()
+
+
+def test_watch_accepts_runtime_bootstrap_instead_of_legacy_run(tmp_path: Path) -> None:
+    sprint = Sprint(
+        id="sprint-29",
+        name="Sprint 29",
+        source="azuredevops",
+        items=[_item("179851")],
+    )
+    FakeBootstrapRuntime.init_calls = []
+    FakeBootstrapRuntime.bootstrap_calls = []
+    watcher = Watcher(
+        workspace=_workspace(tmp_path),
+        operator=FakeOperator(sprint),
+        autonomy_policy=AutonomyPolicy(level="plan"),
+        flow_factory=FakeBootstrapRuntime,
+    )
+
+    result = watcher.run_once()
+
+    assert len(result.processed) == 1
+    assert len(FakeBootstrapRuntime.init_calls) == 1
+    assert len(FakeBootstrapRuntime.bootstrap_calls) == 1
+    assert FakeBootstrapRuntime.bootstrap_calls[0]["bootstrap"]["resume"] is True
+    assert FakeBootstrapRuntime.bootstrap_calls[0]["bootstrap"]["run_id"].startswith("watch-")
 
 
 def test_watch_cli_help_documents_command() -> None:

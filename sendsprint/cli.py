@@ -47,6 +47,7 @@ from sendsprint.watch_config import parse_interval_minutes
 from sendsprint.workspace import load_workspace
 from sendsprint.credentials import Provider as CredentialProvider
 from sendsprint.yool.runtime import dispatch_yool, inspect_run, parse_payload, resume_run, snapshot
+from sendsprint.yool.tuples import TupleLog, list_runs
 
 app = typer.Typer(
     add_completion=False,
@@ -322,6 +323,11 @@ def run_flow(
         help="Reuse run state to avoid duplicate delivery",
     ),
     run_id: str | None = typer.Option(None, "--run-id", help="Explicit run state id"),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Bypass receipt cache and force worker execution for this run.",
+    ),
 ) -> None:
     """Run the full SendSprint flow."""
     ws = load_workspace(workspace_file) if workspace_file else None
@@ -385,13 +391,14 @@ def run_flow(
     else:
         iteration_path = identifier
 
-    result = flow.run(
+    result = flow.bootstrap(
         sprint_id=sprint_id,
         iteration_path=iteration_path,
         repo_path=str(repo_path) if repo_path else None,
         dry_run=dry_run,
         resume=resume,
         run_id=run_id,
+        no_cache=no_cache,
     )
 
     _render_sprint(result.sprint)
@@ -821,6 +828,11 @@ def sprint(ctx: typer.Context,
         help="Reuse run state to avoid duplicate delivery",
     ),
     run_id: str | None = typer.Option(None, "--run-id", help="Explicit run state id"),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Bypass receipt cache and force worker execution for this run.",
+    ),
 ) -> None:
     """One-shot — runs the full 10-step flow with credentials and defaults from profile.
 
@@ -924,13 +936,14 @@ def sprint(ctx: typer.Context,
         code_generation=code_generation,
         deploy=deploy_config,
     )
-    result = flow.run(
+    result = flow.bootstrap(
         sprint_id=sprint_id,
         iteration_path=iteration_path,
         repo_path=str(repo) if repo else None,
         dry_run=dry_run,
         resume=resume,
         run_id=run_id,
+        no_cache=no_cache,
     )
 
     _render_sprint(result.sprint)
@@ -990,10 +1003,24 @@ def sprint_inspect_cmd(
 
 @sprint_app.command("resume")
 def sprint_resume_cmd(
-    run_id: str = typer.Argument(..., help="Tuple run id to replay pending tuples from"),
+    run_or_tuple_id: str = typer.Argument(
+        ...,
+        help="Tuple run id or tuple id to replay pending work from",
+    ),
 ) -> None:
     """Replay pending tuples from the append-only tuple log."""
-    console.print_json(data=resume_run(run_id))
+    console.print_json(data=resume_run(_resolve_run_id(run_or_tuple_id)))
+
+
+def _resolve_run_id(identifier: str) -> str:
+    if identifier.startswith("run-") or identifier.startswith("tuple-"):
+        return identifier
+    if identifier.startswith("sha256:"):
+        for run_id in list_runs():
+            log = TupleLog(run_id)
+            if any(tup.id == identifier for tup in log.tuples()):
+                return run_id
+    raise typer.BadParameter("identifier must be a tuple run id or an existing tuple id")
 
 
 def _render_sprint(sprint: Sprint) -> None:

@@ -69,7 +69,7 @@ def _run_real(run_id: str, req: StartRunRequest) -> dict[str, Any]:
         run_id, {"type": "step", "step": 1, "name": "read-sprint", "status": "running"}
     )
     if req.provider == "jira":
-        result = flow.run(
+        result = flow.bootstrap(
             sprint_id=req.sprint_id,
             repo_path=req.repo_path,
             dry_run=req.dry_run,
@@ -77,7 +77,7 @@ def _run_real(run_id: str, req: StartRunRequest) -> dict[str, Any]:
             run_id=run_id,
         )
     else:
-        result = flow.run(
+        result = flow.bootstrap(
             iteration_path=req.sprint_id,
             repo_path=req.repo_path,
             dry_run=req.dry_run,

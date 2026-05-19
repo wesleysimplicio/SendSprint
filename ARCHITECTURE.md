@@ -9,15 +9,16 @@ branches, run quality gates, capture evidence, create PRs, and report the run.
 
 ```mermaid
 flowchart LR
-  CLI["Typer CLI\nsendsprint/cli.py"] --> Flow["SprintFlow\nsendsprint/flow/sprint_flow.py"]
+  CLI["Typer CLI\nsendsprint/cli.py"] --> Flow["SprintFlow bootstrap\nsendsprint/flow/sprint_flow.py"]
   CLI --> Yool["Tuple runtime\ncatalog/dispatch/inspect/resume"]
   API["FastAPI API\nsendsprint/api"] --> Flow
   MCP["MCP server\nsendsprint/mcp/server.py"] --> Yool
   Web["Local dashboard\nweb/"] --> API
   Flow --> Operators["Trackers\nJira / Azure DevOps"]
   Flow --> Planning["Planning + scope\nplanning.py / scope.py"]
-  Flow --> Worktree["Git worktrees\nagents/worktree.py"]
-  Flow --> Agents["Delivery agents\nDev / Lint / Test / Security / PR"]
+  Flow --> Worktree["Tuple seed + worktree prep\nagents/worktree.py"]
+  Flow --> Bus["WorkerPool lanes\nDev -> Lint -> Test -> Security -> PR"]
+  Bus --> Agents["Delivery agents\nDev / Lint / Test / Security / PR"]
   Flow --> Reports["RunReport + evidence\nmodels/reports.py"]
   Yool --> TupleLog["Tuple log\n.sendsprint/tuples/*.ndjson"]
   Yool --> Receipts["Receipt store\n.sendsprint/receipts/**"]
@@ -32,8 +33,8 @@ flowchart LR
 | Area | Files | Responsibility |
 |---|---|---|
 | CLI | `sendsprint/cli.py` | Typer commands, rendering, option parsing, command exit behavior |
-| Orchestration | `sendsprint/flow/sprint_flow.py` | End-to-end delivery sequence, dry-run, resume, worktree, commit, push, PR, deploy |
-| Tuple runtime | `sendsprint/yool/*`, `scripts/build_agent_catalog.py` | HAMT catalog, dispatch, tuple log, receipts, bus/workers, inspect/resume primitives |
+| Orchestration | `sendsprint/flow/sprint_flow.py` | Dry-run planning plus tuple-runtime bootstrap for the delivery worker lanes |
+| Tuple runtime | `sendsprint/yool/*`, `scripts/build_agent_catalog.py` | HAMT catalog, dispatch, tuple log, receipts, bus/workers, cache/resume primitives |
 | Domain models | `sendsprint/models/*.py` | Sprint, workspace, reports, PR info, evidence, security findings |
 | Tracker operators | `sendsprint/operators/*.py` | Jira and Azure DevOps read paths with MCP/API/Playwright fallback |
 | Planning | `sendsprint/planning.py`, `sendsprint/agents/story_task_planner.py` | Route sprint items to repos, branch names, confidence scoring |
@@ -50,9 +51,10 @@ flowchart LR
 3. Scope filters items by user/status/key.
 4. Planning routes deliverable items to repos and branches.
 5. Dry-run returns a `DeliveryPlan`; normal run persists state in `.sendsprint/runs/`.
-6. Each delivery item runs through architecture, dev/build, optional codegen, lint, tests, security, fix loop, commit, push, PR, review, and optional deploy.
+6. Each delivery item runs through architecture, then seeds a root tuple and executes `dev -> lint -> test -> security -> pr` via the worker pool.
 7. A `RunReport` is emitted and can be serialized as JSON for CLI, API, PR bodies, dashboard, and future evidence bundles.
 8. The yool runtime exposes `.catalog/agents.json`, append-only tuple logs, MCP `snapshot/dispatch/inspect`, and CLI `sprint catalog|dispatch|inspect|resume` for addressable capability execution.
+9. Receipt reuse is the default across repeated `sprint run` invocations; use `--no-cache` when a forced fresh pass is required.
 
 ## Safety Boundaries
 

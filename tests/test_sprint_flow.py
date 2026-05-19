@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import subprocess
+from collections import defaultdict
 from typing import Any
 from unittest.mock import MagicMock
 
 from sendsprint.flow.sprint_flow import SprintFlow
+from sendsprint.models import ArchitectureReport
 from sendsprint.models.reports import PrInfo, RunReport, StepReport
 from sendsprint.models.sprint import Sprint, SprintItem
 from sendsprint.models.workspace import (
@@ -18,6 +20,7 @@ from sendsprint.models.workspace import (
 from sendsprint.operators.base import BaseOperator
 from sendsprint.policy import AutonomyPolicy
 from sendsprint.tech import TechFingerprint
+from sendsprint.yool.receipts import ReceiptStore
 
 
 def _flow(workspace: WorkspaceConfig | None = None) -> SprintFlow:
@@ -207,3 +210,171 @@ def test_step_11_deploy_uses_operator_ticket_updater(monkeypatch, tmp_path) -> N
     assert captured["run"] == ("PROJ-42", "run-42", "https://github.com/example/pr/1")
     assert captured["config"].final_status == "Released"
     assert operator.calls == [("PROJ-42", "Released", "Deploy comment")]
+
+
+def test_bootstrap_reuses_receipts_across_consecutive_runs(tmp_path, monkeypatch) -> None:
+    subprocess.run(["git", "init", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
+    counters: dict[str, int] = defaultdict(int)
+
+    def fake_import_specs(self, sprint: Sprint, repo_path: str | None, report: RunReport) -> None:
+        del self, sprint, repo_path
+        report.steps.append(StepReport(step=1, name="import-specs", status="ok"))
+
+    def fake_arch(self, repo, fp, report: RunReport):
+        del self, fp
+        report.steps.append(StepReport(step=2, name="architecture", repo=str(repo), status="ok"))
+        return ArchitectureReport(
+            repo_path=str(repo),
+            has_readme=True,
+            has_agentic_starter=True,
+            score=1.0,
+        ), None
+
+    def fake_try_worktree(self, repo, branch):
+        del self, repo, branch
+        return None
+
+    def fake_step3(self, dev, report: RunReport, repo_cfg):
+        del self, dev, repo_cfg
+        counters["dev"] += 1
+        report.steps.append(StepReport(step=3, name="install", status="ok"))
+        report.steps.append(StepReport(step=3, name="build", status="ok"))
+
+    def fake_codegen(self, work_dir, item, report: RunReport):
+        del self, work_dir, item
+        step = StepReport(step=35, name="codegen", status="ok")
+        report.steps.append(step)
+        return step
+
+    def fake_lint(self, linter, report: RunReport):
+        del self, linter
+        counters["lint"] += 1
+        step = StepReport(step=4, name="lint", status="ok")
+        report.steps.append(step)
+        return step
+
+    def fake_tests(self, runner, report: RunReport):
+        del self, runner
+        counters["test"] += 1
+        steps = [
+            StepReport(step=5, name="tests-unit", status="ok"),
+            StepReport(step=5, name="tests-e2e", status="ok"),
+        ]
+        report.steps.extend(steps)
+        return steps
+
+    def fake_security(self, sec, report: RunReport):
+        del self, sec
+        counters["security"] += 1
+        step = StepReport(step=6, name="security", status="ok")
+        report.steps.append(step)
+        return step
+
+    def fake_fix_loop(
+        self,
+        dev,
+        linter,
+        runner,
+        sec,
+        lint_report,
+        test_reports,
+        sec_report,
+        report,
+    ):
+        del self, dev, linter, runner, sec, lint_report, test_reports, sec_report
+        report.steps.append(StepReport(step=7, name="fix-loop", status="ok"))
+
+    def fake_commit(self, work_dir, task_sprint, report: RunReport, item):
+        del self, work_dir, task_sprint, item
+        report.steps.append(StepReport(step=8, name="commit", status="ok"))
+
+    def fake_push(self, work_dir, branch):
+        del self, work_dir, branch
+
+    def fake_pr(
+        self,
+        work_dir,
+        branch,
+        target,
+        provider,
+        reviewers,
+        required_reviewers,
+        sprint,
+        report,
+        item,
+    ):
+        del self, work_dir, branch, target, provider, reviewers, required_reviewers, sprint, item
+        counters["pr"] += 1
+        step = StepReport(
+            step=9,
+            name="create-pr",
+            status="ok",
+            pr=PrInfo(
+                provider="github",
+                repo=str(tmp_path),
+                title="PR",
+                source_branch="feature/42",
+                target_branch="main",
+                url="https://example.test/pr/1",
+            ),
+        )
+        report.steps.append(step)
+        return step
+
+    def fake_review(self, work_dir, branch, target, rpath, pr_report, report: RunReport):
+        del self, work_dir, branch, target, rpath, pr_report
+        report.steps.append(StepReport(step=10, name="review", status="ok"))
+        report.steps.append(StepReport(step=10, name="delivered", status="ok"))
+
+    def fake_deploy(self, item, pr_report, report: RunReport, run_id):
+        del self, item, pr_report, run_id
+        step = StepReport(step=11, name="deploy-trigger", status="ok")
+        report.steps.append(step)
+        return step
+
+    monkeypatch.setattr(SprintFlow, "_step1_5_import_specs", fake_import_specs)
+    monkeypatch.setattr(SprintFlow, "_step2_architecture", fake_arch)
+    monkeypatch.setattr(SprintFlow, "_try_worktree", fake_try_worktree)
+    monkeypatch.setattr(SprintFlow, "_step3_dev", fake_step3)
+    monkeypatch.setattr(SprintFlow, "_step3_5_codegen", fake_codegen)
+    monkeypatch.setattr(SprintFlow, "_step4_lint", fake_lint)
+    monkeypatch.setattr(SprintFlow, "_step5_tests", fake_tests)
+    monkeypatch.setattr(SprintFlow, "_step6_security", fake_security)
+    monkeypatch.setattr(SprintFlow, "_step7_fix_loop", fake_fix_loop)
+    monkeypatch.setattr(SprintFlow, "_step8_commit", fake_commit)
+    monkeypatch.setattr(SprintFlow, "_push_branch", fake_push)
+    monkeypatch.setattr(SprintFlow, "_step9_create_pr", fake_pr)
+    monkeypatch.setattr(SprintFlow, "_step10_review_and_deliver", fake_review)
+    monkeypatch.setattr(SprintFlow, "_step11_deploy", fake_deploy)
+
+    flow = SprintFlow(
+        operator=FakeOperator(transport="api"),
+        autonomy_policy=AutonomyPolicy(level="deploy-callback"),
+    )
+
+    first = flow.bootstrap(repo_path=str(tmp_path), sprint_id=42, resume=False, run_id="run-a")
+    receipt_store = ReceiptStore(tmp_path / ".sendsprint" / "receipts")
+    receipt_count = len(list(receipt_store.all()))
+    assert {k: counters[k] for k in ("dev", "lint", "test", "security", "pr")} == {
+        "dev": 1,
+        "lint": 1,
+        "test": 1,
+        "security": 1,
+        "pr": 1,
+    }
+
+    second = flow.bootstrap(repo_path=str(tmp_path), sprint_id=42, resume=False, run_id="run-b")
+    receipt_count_after = len(list(receipt_store.all()))
+
+    assert receipt_count_after == receipt_count
+    assert {k: counters[k] for k in ("dev", "lint", "test", "security", "pr")} == {
+        "dev": 1,
+        "lint": 1,
+        "test": 1,
+        "security": 1,
+        "pr": 1,
+    }
+    assert first.run_report is not None
+    assert second.run_report is not None
+    assert first.run_report.summary == second.run_report.summary
+    assert any(step.name == "create-pr" for step in second.run_report.steps)

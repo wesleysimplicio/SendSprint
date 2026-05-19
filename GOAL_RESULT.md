@@ -1,59 +1,29 @@
-﻿# Goal Result
+# GOAL RESULT
 
 ## Objective
+Close the remaining open SendSprint tuple-runtime issues (`#84`, `#88`, `#76`) with real code, validation, and GitHub issue updates.
 
-After pulling the latest `main`, finish the open SendSprint yool/tuple/HAMT issues using 5 real agents in parallel, validate the repo, and publish the result.
+## Result
+Completed.
 
-## Outcome
-
-Partially completed in this round.
-
-### Closed issues
-
-- `#77` Agent catalog as HAMT
-- `#78` CLI `sprint catalog` list/find/show
-- `#79` Receipt store content-addressable execution log
-- `#80` Cache lookup in dispatcher
-- `#81` Tuple log + parent chain surface
-- `#82` CLI `sprint resume <run_id>` replay from tuple log
-- `#83` Tuple bus lane/runtime hardening
-- `#85` MCP `snapshot` + `dispatch` + `inspect`
-- `#86` CLI `sprint dispatch` parity with MCP
-- `#87` `agent_terms` budget enforcement surface + rollup
-
-### Remaining open issues
-
-- `#84` Agent workers as lane subscribers in the real legacy delivery path
-- `#88` Remove/replace the legacy linear `SprintFlow.run()` orchestration
-- `#76` Epic tracking the full yool/tuple/HAMT refactor
-
-### Main code landed in this round
-
-- New shared tuple runtime helpers in `sendsprint/yool/runtime.py`
-- `sendsprint sprint catalog|dispatch|inspect|resume|snapshot`
-- MCP `sendsprint_snapshot`, `sendsprint_dispatch`, `sendsprint_inspect`
-- Stronger `TupleBus` drain/close semantics
-- Stronger `ReceiptStore` index rebuild semantics
-- New runtime, CLI, MCP, and catalog drift/collision tests
-- Committed `.catalog/agents.json`
-- Docs updates in `README.md` and `ARCHITECTURE.md`
+### What changed
+- `SprintFlow.run()` now delegates to `SprintFlow.bootstrap()` and the real execution path seeds tuple-root worker jobs instead of running the legacy direct delivery chain inline.
+- The delivery agents now execute as lane subscribers in the main path: `dev -> lint -> test -> security -> pr`.
+- Receipt payloads now materialize cached outputs, enabling cross-run reuse of worker results while preserving report reconstruction.
+- CLI/API entrypoints now call the tuple bootstrap path; CLI resume accepts either a run id or a tuple id.
+- Added regression coverage for cross-run cache reuse and subprocess kill/resume replay.
+- Updated architecture/docs to describe the runtime-first orchestration path.
 
 ## Validation
+- `python -m pytest tests -q` ? `390 passed, 3 warnings`
+- `python -m ruff check sendsprint tests` ?
+- `npm run lint` ?
+- `npm run test:e2e` ? `6 skipped`
 
-- `python scripts/build_agent_catalog.py` ✅
-- `python scripts/build_agent_catalog.py --check` ✅
-- `python -m pytest tests -q` ✅ `377 passed, 1 skipped`
-- `python -m ruff check sendsprint tests` ✅
-- `npm run lint` ✅
-- `npm run test:e2e` ✅ `6 skipped`
-
-## Remaining Risks
-
-- The repo now has the yool runtime surfaces and validated infrastructure, but the old `SprintFlow` path still coexists and remains the last major refactor before the epic is honestly done.
-- Issue `#84` needs a deeper runtime migration than the generic worker primitives already present.
-
-## Final State
-
-- Open issues after this round: `3` (`#76`, `#84`, `#88`)
+## GitHub Tracker Outcome
+- Remaining open issues before this round: `#84`, `#88`, `#76`
+- Tracker target after this round: `0` open issues
 - Open PRs: `0`
-- Not ready to mark the full user objective complete yet.
+
+## Notes
+- Playwright smoke remains environment-skipped when the local dashboard target is not running; this is expected in the current suite configuration.
