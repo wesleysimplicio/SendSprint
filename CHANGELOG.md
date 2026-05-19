@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- expose agent-grade sprint run status
 - finish autonomy tracker foundations
 - rollback and safe-exit plan generator (closes #58)
 - add agent registry foundations
@@ -20,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
