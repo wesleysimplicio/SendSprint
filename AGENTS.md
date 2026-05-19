@@ -292,6 +292,45 @@ Refs ADR-005
 - [ ] Pushed to `origin/main` (or feature branch + PR)
 - [ ] If new pattern → ADR added in `.specs/architecture/`
 
+<!-- yool-tuple-hamt:start -->
+## yool / tuple / HAMT (capability addressing)
+
+Vendored spec: https://github.com/wesleysimplicio/yool-tuple-hamt (v0.2).
+
+Agent capabilities in this repo are exposed as **yools** — atomic callable opcodes — and indexed in a HAMT (`.catalog/hamt.json`). Build/query via:
+
+```bash
+sendsprint catalog build             # write .catalog/hamt.json
+sendsprint catalog list               # list every yool
+sendsprint catalog show <yool_id>     # one yool with guardrails
+sendsprint catalog find <substr>      # search by substring
+```
+
+Source of truth for yools is `sendsprint/agent_registry.py`. Adding a new capability there auto-appears in the catalog on next `build`.
+
+### Guardrails (MANDATORY — spec §11)
+
+Every catalog entry **must** carry:
+
+- `cpu_quota_pct` (default 60) — caps CPU per yool. Spec §11.1 maps to `os.nice` via `(100 - quota) / 5.2` on POSIX; cgroups on Linux; `taskpolicy` on macOS. Prevents one yool from frying the host.
+- `disk_quota_mb` (default 100) — caps the artifact bytes a single execution may write before being killed and recorded as `status="disk_exceeded"`.
+- `timeout_s` (default 300) — wall-clock kill.
+
+### Disk GC (MANDATORY — spec §11.2)
+
+Receipts are immutable (cache-key Merkle chain) and **never deleted**. Artifact **bodies** rotate through three tiers:
+
+| Tier | Age      | Receipt | Artifact body |
+|------|----------|---------|---------------|
+| hot  | ≤ 30d    | keep    | keep          |
+| warm | ≤ 365d   | keep    | purge         |
+| cold | > 365d   | keep    | purge         |
+
+`DiskPressure` circuit breaker raises before free space falls below `free_mb_floor=1000`. Reference implementation: `guardrails/disk_gc.py` in the spec repo.
+
+> Victor (Dev Hermes): *"precisa de guardrail pra nao fritar o processador. voce precisa de garbage collector tmb pra nao enxer 100% do disco."* — both are non-optional in this stack.
+<!-- yool-tuple-hamt:end -->
+
 <!-- codex-long-running-agent-overlay:start -->
 ## Universal Long-Running Agent Overlay
 

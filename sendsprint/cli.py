@@ -40,6 +40,7 @@ from sendsprint.reports import render_executive_report
 from sendsprint.scaffolder import Scaffolder
 from sendsprint.scope import build_scope
 from sendsprint.templates import catalog
+from sendsprint import catalog as agent_catalog
 from sendsprint.tech import detect_tech
 from sendsprint.trackers import GitHubIssuesTracker
 from sendsprint.watch import WatchCycleResult, Watcher
@@ -1163,6 +1164,107 @@ def _interactive_picker() -> tuple[str, list[str] | None]:
         keys = [k.strip() for k in raw.split(",") if k.strip()]
         return "all", keys or None
     return "mine", None
+
+
+catalog_app = typer.Typer(
+    add_completion=False,
+    help="Manage the HAMT-backed agent capability catalog (yool/tuple/HAMT).",
+)
+app.add_typer(catalog_app, name="catalog")
+
+
+@catalog_app.command("build")
+def catalog_build(
+    output: Path = typer.Option(
+        agent_catalog.DEFAULT_CATALOG_PATH,
+        "--output",
+        "-o",
+        help="Destination JSON path (default .catalog/hamt.json).",
+    ),
+) -> None:
+    """Build the agent catalog from the default registry and persist it."""
+    cat = agent_catalog.build_agent_catalog()
+    target = agent_catalog.save_catalog(cat, output)
+    entries = agent_catalog.list_entries(cat)
+    console.print(f"[green]wrote {len(entries)} yools[/green] -> {target}")
+
+
+def _load_or_build(path: Path) -> agent_catalog.CatalogNode:
+    if path.exists():
+        return agent_catalog.load_catalog(path)
+    return agent_catalog.build_agent_catalog()
+
+
+def _render_entries(rows: list[agent_catalog.CatalogEntry]) -> None:
+    table = Table(title="Agent yools", show_lines=False)
+    table.add_column("yool_id", style="cyan")
+    table.add_column("cost")
+    table.add_column("cpu%")
+    table.add_column("disk_mb")
+    table.add_column("timeout_s")
+    table.add_column("description", style="dim")
+    for entry in rows:
+        table.add_row(
+            entry.yool_id,
+            entry.cost_profile,
+            str(entry.cpu_quota_pct),
+            str(entry.disk_quota_mb),
+            str(entry.timeout_s),
+            entry.description,
+        )
+    console.print(table)
+
+
+@catalog_app.command("list")
+def catalog_list(
+    source: Path = typer.Option(
+        agent_catalog.DEFAULT_CATALOG_PATH,
+        "--source",
+        "-s",
+        help="Catalog JSON path; rebuilt from registry if missing.",
+    ),
+) -> None:
+    """List every yool in the catalog."""
+    cat = _load_or_build(source)
+    _render_entries(agent_catalog.list_entries(cat))
+
+
+@catalog_app.command("find")
+def catalog_find(
+    query: str = typer.Argument(..., help="Substring to match against yool_id."),
+    source: Path = typer.Option(
+        agent_catalog.DEFAULT_CATALOG_PATH,
+        "--source",
+        "-s",
+        help="Catalog JSON path; rebuilt from registry if missing.",
+    ),
+) -> None:
+    """Find yools whose id contains the given substring."""
+    cat = _load_or_build(source)
+    hits = agent_catalog.find_entries(cat, query)
+    if not hits:
+        console.print(f"[yellow]no yools match[/yellow] '{query}'")
+        raise typer.Exit(code=1)
+    _render_entries(hits)
+
+
+@catalog_app.command("show")
+def catalog_show(
+    yool_id: str = typer.Argument(..., help="Exact yool id, e.g. agent.codex.plan"),
+    source: Path = typer.Option(
+        agent_catalog.DEFAULT_CATALOG_PATH,
+        "--source",
+        "-s",
+        help="Catalog JSON path; rebuilt from registry if missing.",
+    ),
+) -> None:
+    """Show the full record for one yool."""
+    cat = _load_or_build(source)
+    entry = agent_catalog.lookup_yool(cat, yool_id)
+    if entry is None:
+        console.print(f"[red]not found[/red]: {yool_id}")
+        raise typer.Exit(code=1)
+    console.print_json(json.dumps(entry.model_dump(mode="json"), sort_keys=True))
 
 
 if __name__ == "__main__":

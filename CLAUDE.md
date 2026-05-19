@@ -54,6 +54,29 @@ Post-edit hook at `.claude/hooks/post-edit.sh` runs `ruff format` on `.py` edits
 
 Order matches transport priority in AGENTS.md §4: `mcp` → `api` → `playwright`.
 
+<!-- yool-tuple-hamt:start -->
+## yool / tuple / HAMT (capability addressing)
+
+Vendored spec: https://github.com/wesleysimplicio/yool-tuple-hamt (v0.2).
+
+Agent capabilities exposed as **yools** indexed in a HAMT (`.catalog/hamt.json`).
+
+```bash
+sendsprint catalog build
+sendsprint catalog list
+sendsprint catalog show agent.codex.plan
+sendsprint catalog find hermes
+```
+
+Source of truth: `sendsprint/agent_registry.py`. Every catalog entry carries the MANDATORY guardrails from spec §11 (Victor's note):
+
+- `cpu_quota_pct` (default 60) — caps CPU via `os.nice`/cgroups/`taskpolicy`. Stops one yool frying the host.
+- `disk_quota_mb` (default 100) — kills writes past the cap, recorded as `status="disk_exceeded"`.
+- `timeout_s` (default 300) — wall-clock kill.
+
+Disk GC three-tier: hot (≤30d, keep all) / warm (≤365d, purge artifact body) / cold (>365d, purge artifact body). Receipts NEVER deleted — they're the Merkle chain. `DiskPressure` raises before free space < 1000 MB.
+<!-- yool-tuple-hamt:end -->
+
 <!-- codex-long-running-agent-overlay:start -->
 ## Universal Long-Running Agent Overlay
 

@@ -6,7 +6,28 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-05-19
+
 ### Added
+
+- HAMT-backed agent capability catalog (`sendsprint/catalog.py`) wrapping the
+  agent registry as yools per the yool/tuple/HAMT spec
+  (https://github.com/wesleysimplicio/yool-tuple-hamt v0.2). 30-bit blake2b
+  hash, branching factor 32, 6 levels, persisted as canonical JSON at
+  `.catalog/hamt.json`.
+- `sprint catalog build|list|find|show` CLI commands for inspecting and
+  persisting the catalog.
+- Every catalog entry carries the mandatory guardrails from spec §11
+  (`cpu_quota_pct`, `disk_quota_mb`, `timeout_s`) — Victor Genaro's
+  observation that the runtime needs a CPU guardrail and disk garbage
+  collector is now structurally enforced at the catalog edge.
+- AGENTS.md / CLAUDE.md document the yool/tuple/HAMT block, guardrails, and
+  three-tier disk GC policy (hot/warm/cold, receipts immutable).
+- Tests for catalog (`tests/test_catalog.py`, 10 cases: HAMT constants,
+  hashing, build, lookup, guardrails, find, JSON roundtrip, overwrite, CLI
+  build/list/show/find).
+
+### Added (prior)
 
 - `sendsprint watch` polling autopilot for assigned Jira/Azure DevOps tasks, with
   conservative default autonomy (`plan`), dry-run listing, local watch-state
