@@ -12,11 +12,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Docs
 
+- reposition SendSprint as a personal utility (closes #64)
 - add C4 architecture maps
 - changelog: promote 0.14.0
 
 ### CI
 
+- release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - release: refresh coverage badge and changelog
 - add PyPI token fallback
