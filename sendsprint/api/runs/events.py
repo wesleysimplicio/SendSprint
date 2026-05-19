@@ -8,10 +8,12 @@ push via ``publish_threadsafe`` since SprintFlow is sync.
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from typing import Any
 
 _loop: asyncio.AbstractEventLoop | None = None
 _queues: dict[str, asyncio.Queue[dict[str, Any]]] = {}
+_history: dict[str, list[dict[str, Any]]] = {}
 
 
 def bind_loop(loop: asyncio.AbstractEventLoop) -> None:
@@ -28,11 +30,15 @@ def queue_for(run_id: str) -> asyncio.Queue[dict[str, Any]]:
 
 
 async def publish(run_id: str, event: dict[str, Any]) -> None:
+    stamped = {**event, "observed_at": datetime.now(UTC).isoformat()}
+    _history.setdefault(run_id, []).append(stamped)
     await queue_for(run_id).put(event)
 
 
 def publish_threadsafe(run_id: str, event: dict[str, Any]) -> None:
     if _loop is None:
+        stamped = {**event, "observed_at": datetime.now(UTC).isoformat()}
+        _history.setdefault(run_id, []).append(stamped)
         return
     asyncio.run_coroutine_threadsafe(publish(run_id, event), _loop)
 
@@ -43,3 +49,14 @@ async def drain(run_id: str) -> dict[str, Any]:
 
 def close(run_id: str) -> None:
     _queues.pop(run_id, None)
+
+
+def history(run_id: str) -> list[dict[str, Any]]:
+    return list(_history.get(run_id, []))
+
+
+def latest_of_type(run_id: str, event_type: str) -> dict[str, Any] | None:
+    for item in reversed(_history.get(run_id, [])):
+        if item.get("type") == event_type:
+            return item
+    return None

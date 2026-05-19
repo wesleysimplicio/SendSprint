@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import threading
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sendsprint.api.runs import events
@@ -17,6 +17,7 @@ from sendsprint.api.schemas import RunStatus, StartRunRequest
 
 _runs: dict[str, RunStatus] = {}
 _threads: dict[str, threading.Thread] = {}
+_requests: dict[str, StartRunRequest] = {}
 
 
 def list_runs() -> list[RunStatus]:
@@ -27,6 +28,10 @@ def get_run(run_id: str) -> RunStatus | None:
     return _runs.get(run_id)
 
 
+def get_run_request(run_id: str) -> StartRunRequest | None:
+    return _requests.get(run_id)
+
+
 def start_run(req: StartRunRequest) -> RunStatus:
     run_id = req.run_id or uuid.uuid4().hex[:12]
     status = RunStatus(
@@ -34,9 +39,10 @@ def start_run(req: StartRunRequest) -> RunStatus:
         state="queued",
         sprint_id=req.sprint_id,
         provider=req.provider,
-        started_at=datetime.utcnow().isoformat(),
+        started_at=datetime.now(UTC).isoformat(),
     )
     _runs[run_id] = status
+    _requests[run_id] = req
     t = threading.Thread(
         target=_worker,
         args=(run_id, req),
@@ -64,7 +70,7 @@ def _worker(run_id: str, req: StartRunRequest) -> None:
         status.failed = bool(report.get("failed"))
         status.summary = report.get("summary")
         status.pr_url = report.get("pr_url")
-        status.finished_at = datetime.utcnow().isoformat()
+        status.finished_at = datetime.now(UTC).isoformat()
         status.last_step = report.get("last_step")
         events.publish_threadsafe(
             run_id,
@@ -78,7 +84,7 @@ def _worker(run_id: str, req: StartRunRequest) -> None:
     except Exception as exc:
         status.state = "failed"
         status.failed = True
-        status.finished_at = datetime.utcnow().isoformat()
+        status.finished_at = datetime.now(UTC).isoformat()
         events.publish_threadsafe(run_id, {"type": "error", "message": str(exc)})
 
 

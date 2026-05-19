@@ -197,6 +197,8 @@ def build_default_server() -> McpServer:
     server = McpServer()
     server.register(_detect_tech_tool())
     server.register(_check_architecture_tool())
+    server.register(_list_runs_tool())
+    server.register(_run_status_tool())
     server.register(_version_tool())
     return server
 
@@ -262,6 +264,50 @@ def _version_tool() -> McpTool:
         name="sendsprint_version",
         description="Return the installed SendSprint version.",
         input_schema={"type": "object", "properties": {}},
+        handler=handler,
+    )
+
+
+def _list_runs_tool() -> McpTool:
+    def handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+        del args
+        from ..api.runs import manager
+
+        return [run.model_dump() for run in manager.list_runs()]
+
+    return McpTool(
+        name="sendsprint_list_runs",
+        description="List locally known SendSprint runs and their current state.",
+        input_schema={"type": "object", "properties": {}},
+        handler=handler,
+    )
+
+
+def _run_status_tool() -> McpTool:
+    def handler(args: dict[str, Any]) -> dict[str, Any]:
+        run_id = args.get("run_id")
+        if not run_id:
+            raise ValueError("missing required arg: run_id")
+        from ..api.runs.agent_status import build_agent_snapshot
+
+        snapshot = build_agent_snapshot(str(run_id))
+        if snapshot is None:
+            raise ValueError(f"run not found: {run_id}")
+        return snapshot.model_dump()
+
+    return McpTool(
+        name="sendsprint_get_run_status",
+        description=(
+            "Return the detailed agent-facing run snapshot with timeline, blockers, evidence, "
+            "progress, iterations, and sprint context so Hermes/Claude/Codex can sync state."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "run_id": {"type": "string", "description": "Run identifier returned by start_run"}
+            },
+            "required": ["run_id"],
+        },
         handler=handler,
     )
 

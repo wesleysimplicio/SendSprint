@@ -1,10 +1,19 @@
 """HTTP API for the SendSprint web flow.
 
-Wraps the existing operators + SprintFlow behind a FastAPI server so a web
-client can drive the pipeline (auth → list sprints → pick items → run → PR)
-over HTTP + SSE.
+Lazy exports avoid requiring FastAPI just to import API-adjacent helpers in
+tests or MCP utilities.
 """
 
-from sendsprint.api.server import app, create_app
+from __future__ import annotations
+
+from typing import Any
 
 __all__ = ["app", "create_app"]
+
+
+def __getattr__(name: str) -> Any:
+    if name in {"app", "create_app"}:
+        from sendsprint.api.server import app, create_app
+
+        return {"app": app, "create_app": create_app}[name]
+    raise AttributeError(name)

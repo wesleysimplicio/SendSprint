@@ -112,6 +112,51 @@ class RunStatus(BaseModel):
     last_step: int | None = None
 
 
+class AgentTimelineEvent(BaseModel):
+    type: str
+    observed_at: str | None = None
+    step: int | None = None
+    name: str | None = None
+    status: str | None = None
+    message: str | None = None
+    evidence_path: str | None = None
+    evidence_label: str | None = None
+    progress: float | None = None
+    summary: str | None = None
+    pr_url: str | None = None
+    failed: bool | None = None
+    iteration: int | None = None
+    max_iterations: int | None = None
+    failing_tests: list[str] | None = None
+
+
+class AgentRunSnapshot(BaseModel):
+    run_id: str
+    sprint_id: str
+    provider: Provider
+    state: Literal["queued", "running", "done", "failed"]
+    mode: RunMode
+    item_keys: list[str] = Field(default_factory=list)
+    repo_path: str | None = None
+    workspace_path: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    summary: str | None = None
+    pr_url: str | None = None
+    failed: bool = False
+    current_step: int | None = None
+    current_step_name: str | None = None
+    current_step_status: str | None = None
+    progress: float | None = None
+    iteration: int | None = None
+    max_iterations: int | None = None
+    failing_tests: list[str] = Field(default_factory=list)
+    evidence_paths: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    recent_logs: list[str] = Field(default_factory=list)
+    timeline: list[AgentTimelineEvent] = Field(default_factory=list)
+
+
 class ImportSprintsRequest(BaseModel):
     provider: Provider
     board_id: str | None = None

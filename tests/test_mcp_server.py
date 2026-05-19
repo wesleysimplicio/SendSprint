@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from sendsprint.mcp import McpServer, McpTool, build_default_server
 from sendsprint.mcp.server import _read_message, serve_stdio
@@ -39,6 +40,7 @@ class TestToolsList:
         names = [t["name"] for t in resp["result"]["tools"]]
         assert "sendsprint_detect_tech" in names
         assert "sendsprint_version" in names
+        assert "sendsprint_get_run_status" in names
 
     def test_each_tool_has_schema(self) -> None:
         server = build_default_server()
@@ -90,6 +92,36 @@ class TestToolsCall:
         resp = server.handle(_request("tools/call", params={"name": "nope", "arguments": {}}))
         assert resp["error"]["code"] == -32601
         assert "unknown tool" in resp["error"]["message"]
+
+    def test_run_status_tool_returns_agent_snapshot(self) -> None:
+        from sendsprint.api.runs import manager
+
+        req = {
+            "provider": "jira",
+            "sprint_id": "123",
+            "mode": "selected",
+            "item_keys": ["APP-9"],
+            "repo_path": None,
+            "workspace_path": None,
+            "dry_run": False,
+            "resume": True,
+            "run_id": None,
+        }
+        status = manager.start_run(SimpleNamespace(**req))
+        server = build_default_server()
+        resp = server.handle(
+            _request(
+                "tools/call",
+                params={
+                    "name": "sendsprint_get_run_status",
+                    "arguments": {"run_id": status.run_id},
+                },
+            )
+        )
+        assert resp is not None
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["run_id"] == status.run_id
+        assert payload["sprint_id"] == "123"
 
 
 class TestUnknownMethod:

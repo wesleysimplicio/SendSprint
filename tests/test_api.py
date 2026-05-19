@@ -65,8 +65,41 @@ def test_get_run_404_for_missing():
     assert resp.status_code == 404
 
 
+def test_agent_status_returns_detailed_snapshot() -> None:
+    payload = {
+        "provider": "jira",
+        "sprint_id": "77",
+        "mode": "selected",
+        "item_keys": ["APP-7"],
+    }
+    resp = client.post("/runs", json=payload)
+    assert resp.status_code == 200
+    run_id = resp.json()["run_id"]
+
+    deadline = time.monotonic() + 5.0
+    snapshot = None
+    while time.monotonic() < deadline:
+        snap_resp = client.get(f"/runs/{run_id}/agent-status")
+        assert snap_resp.status_code == 200
+        snapshot = snap_resp.json()
+        if snapshot["timeline"]:
+            break
+        time.sleep(0.1)
+
+    assert snapshot is not None
+    assert snapshot["run_id"] == run_id
+    assert snapshot["item_keys"] == ["APP-7"]
+    assert snapshot["timeline"]
+    assert "recent_logs" in snapshot
+
+
 def test_dashboard_run_404_for_missing():
     resp = client.get("/runs/does-not-exist/dashboard")
+    assert resp.status_code == 404
+
+
+def test_agent_status_404_for_missing():
+    resp = client.get("/runs/does-not-exist/agent-status")
     assert resp.status_code == 404
 
 
