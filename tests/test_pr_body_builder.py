@@ -105,3 +105,37 @@ def test_step_table_filters_by_repo():
     body = PrBodyBuilder(Path(".")).build(_sprint(), "demo-repo", steps, "sprint-42")
     assert "clean" in body
     assert "| 4 | lint | failed | x |" not in body
+
+
+def test_rollback_section_appears_only_when_plan_passed():
+    """Issue #58: PR body must include a Rollback section when a plan is given."""
+    from sendsprint.models.reports import PrInfo, RunReport
+    from sendsprint.rollback import build_rollback_plan
+
+    report = RunReport(
+        workspace="ws",
+        sprint_id="42",
+        steps=[
+            StepReport(step=2, name="architecture", status="ok"),
+            StepReport(step=8, name="commit", status="ok", repo="demo-repo"),
+        ],
+        prs=[
+            PrInfo(
+                provider="github",
+                repo="demo-repo",
+                number=7,
+                url="https://github.com/acme/demo/pull/7",
+                title="t",
+                source_branch="sendsprint/X-1",
+                target_branch="main",
+            )
+        ],
+    )
+    plan = build_rollback_plan(report, run_id="r1")
+    body_with = PrBodyBuilder(Path(".")).build(
+        _sprint(), "demo-repo", [], "sprint-42", rollback=plan
+    )
+    body_without = PrBodyBuilder(Path(".")).build(_sprint(), "demo-repo", [], "sprint-42")
+    assert "## Rollback" in body_with
+    assert "gh pr close" in body_with
+    assert "## Rollback" not in body_without
