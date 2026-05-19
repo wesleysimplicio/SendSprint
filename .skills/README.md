@@ -86,6 +86,7 @@ Por isso, **o `description` é a coisa mais importante do frontmatter**. Escreva
 | [`ralph-loop/`](./ralph-loop/SKILL.md) | **Always-on.** Loop autônomo read→plan→execute→lint→unit→e2e→fix→repeat até DoD verde |
 | [`caveman/`](./caveman/SKILL.md) | **Always-on.** Modo terse de resposta para economizar tokens (~65% saída) |
 | [`everything-claude-code/`](./everything-claude-code/SKILL.md) | **Always-on.** Catálogo + protocolo de uso da suite ECC (60 agents, 221 skills) em paralelo |
+| [`rtk-cli/`](./rtk-cli/SKILL.md) | Use RTK CLI para reduzir tokens em exploração shell e validação verbosa |
 
 ### Skills always-on (padrão do projeto)
 

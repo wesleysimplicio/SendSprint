@@ -54,6 +54,12 @@ def test_<thing>_<case>(monkeypatch, tmp_path):
     # arrange + act + assert
 ```
 
+<!-- rtk-cli:start -->
+## Shell token-smart (RTK CLI, optional)
+
+If `rtk` (https://github.com/rtk-ai/rtk) is on PATH, prefer `rtk read|grep|find|git|pytest` for repo exploration and verbose validators. Falls back to plain commands when absent. Full rules in AGENTS.md and `.skills/rtk-cli/SKILL.md`.
+<!-- rtk-cli:end -->
+
 <!-- codex-long-running-agent-overlay:start -->
 ## Universal Long-Running Agent Overlay
 

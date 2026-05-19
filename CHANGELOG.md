@@ -6,6 +6,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-05-19
+
+### Added
+
+- `## Shell token-smart (RTK CLI, optional)` section in AGENTS.md, CLAUDE.md
+  and `.github/copilot-instructions.md` — agents prefer
+  https://github.com/rtk-ai/rtk for `read|grep|find|git|pytest` when on PATH,
+  no hard dependency.
+- `.skills/rtk-cli/SKILL.md` skill manifest with steps, do-not list, trigger
+  examples and DoD. Indexed in `.skills/README.md`.
+
+### Notes
+
+- Closes #90 (RTK CLI integration). #89 (vendor `docs/YOOL_TUPLE_HAMT.md`)
+  is deferred — spec stays at the upstream repo; AGENTS.md links there.
+  Re-evaluate when offline access becomes a blocker.
+
 ## [0.16.1] - 2026-05-19
 
 ### Added

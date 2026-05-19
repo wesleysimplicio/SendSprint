@@ -292,6 +292,30 @@ Refs ADR-005
 - [ ] Pushed to `origin/main` (or feature branch + PR)
 - [ ] If new pattern → ADR added in `.specs/architecture/`
 
+<!-- rtk-cli:start -->
+## Shell token-smart (RTK CLI, optional)
+
+If `rtk` (https://github.com/rtk-ai/rtk) is on PATH, prefer it for shell-heavy and exploratory work — compact output, ~40-70% fewer tokens, same signal.
+
+```bash
+rtk read AGENTS.md
+rtk grep "pattern" sendsprint/
+rtk find "*.py" .
+rtk git status
+rtk git diff
+rtk git log -n 10
+rtk npm test            # or rtk pytest
+```
+
+Rules:
+- Use `rtk read|grep|find|git ...` as first choice for textual inspection.
+- Use `rtk <command>` on verbose validators where a summary is enough to decide next step.
+- **Do not** route through RTK: interactive prompts, streaming, or anything where raw output is the evidence (`curl`, `playwright`, `gh pr view --web`, long verbatim logs).
+- If `rtk` is not installed, fall back to plain commands — no hard dependency.
+
+See `.skills/rtk-cli/SKILL.md` for the full skill manifest.
+<!-- rtk-cli:end -->
+
 <!-- yool-tuple-hamt:start -->
 ## yool / tuple / HAMT (capability addressing)
 

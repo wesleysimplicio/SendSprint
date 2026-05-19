@@ -54,6 +54,12 @@ Post-edit hook at `.claude/hooks/post-edit.sh` runs `ruff format` on `.py` edits
 
 Order matches transport priority in AGENTS.md §4: `mcp` → `api` → `playwright`.
 
+<!-- rtk-cli:start -->
+## Shell token-smart (RTK CLI, optional)
+
+If `rtk` (https://github.com/rtk-ai/rtk) is installed, prefer `rtk read|grep|find|git|pytest` for exploration and verbose validation. Falls back gracefully when absent. Full rules in AGENTS.md and `.skills/rtk-cli/SKILL.md`.
+<!-- rtk-cli:end -->
+
 <!-- yool-tuple-hamt:start -->
 ## yool / tuple / HAMT (capability addressing)
 
