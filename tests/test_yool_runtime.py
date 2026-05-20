@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import os
 import subprocess
@@ -104,20 +103,13 @@ def test_worker_consumes_lane_and_emits_child_tuple(tmp_path: Path) -> None:
     log.append(parent)
 
     async def scenario() -> None:
-        task = asyncio.create_task(worker.run())
+        await worker._handle(parent)
 
-        async def drain_review() -> None:
-            async for tup in bus.subscribe("review"):
-                assert tup.parent_id == parent.id
-                return
-
-        review_task = asyncio.create_task(drain_review())
-        await bus.publish(parent)
-        await asyncio.wait_for(review_task, timeout=5)
+        review_stream = bus.subscribe("review")
+        child = await asyncio.wait_for(anext(review_stream), timeout=5)
+        assert child.parent_id == parent.id
+        await review_stream.aclose()
         await bus.close()
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
 
     asyncio.run(scenario())
 
