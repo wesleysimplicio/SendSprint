@@ -8,6 +8,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Central `DeliveryQualityGate` in `sendsprint/quality_gate.py` consolidating
+  lint, tests, security, coverage, Playwright, and diff-hygiene checks into a
+  single `pass` / `needs_rework` / `needs_human_approval` verdict before publish
+  and closeout. Integrates with `AutonomyPolicy` for human-review gating and
+  `BundleManager` for persisting decisions to evidence bundles (#93).
+- 32 tests in `tests/test_quality_gate.py` covering all three verdict paths,
+  individual check pass/fail, diff-hygiene scanning, evidence persistence, and
+  bundle reloadability (#93).
+
 - Verifiable planning phase module `sendsprint/plan_verifier.py` with
   `VerifiablePlan` Pydantic model (task_summary, target_files, expected_tests,
   risks, done_criteria, approved_by, approved_at), `PlanVerifier` class
