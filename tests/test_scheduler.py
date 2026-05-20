@@ -1,4 +1,9 @@
-from sendsprint.scheduler import ParallelIssueScheduler, ScheduledTask
+from sendsprint.scheduler import (
+    AgentFanoutPolicy,
+    HostResourceSnapshot,
+    ParallelIssueScheduler,
+    ScheduledTask,
+)
 
 
 def test_scheduler_assigns_preferred_provider_within_capacity() -> None:
@@ -21,3 +26,46 @@ def test_scheduler_blocks_unknown_capability() -> None:
 
     assert assigned == []
     assert scheduler.tasks[0].status == "blocked"
+
+
+def test_scheduler_uses_resource_aware_fanout_capacity() -> None:
+    scheduler = ParallelIssueScheduler(
+        concurrency_limit=1,
+        fanout_policy=AgentFanoutPolicy(requested_agents=5),
+        resource_snapshot=HostResourceSnapshot(
+            logical_cpus=16,
+            available_memory_mb=32768,
+            cpu_idle_percent=80,
+        ),
+    )
+    for issue in range(1, 7):
+        scheduler.enqueue(
+            ScheduledTask(issue_key=f"#{issue}", repo=f"repo-{issue}", capability_key="test")
+        )
+
+    assigned = scheduler.assign_next()
+
+    assert len(assigned) == 5
+    assert scheduler.effective_concurrency_limit == 5
+
+
+def test_scheduler_reduces_fanout_when_memory_is_low() -> None:
+    scheduler = ParallelIssueScheduler(
+        fanout_policy=AgentFanoutPolicy(requested_agents=5),
+        resource_snapshot=HostResourceSnapshot(logical_cpus=16, available_memory_mb=2500),
+    )
+
+    assert scheduler.effective_concurrency_limit == 1
+
+
+def test_scheduler_reduces_fanout_when_cpu_is_busy() -> None:
+    scheduler = ParallelIssueScheduler(
+        fanout_policy=AgentFanoutPolicy(requested_agents=5),
+        resource_snapshot=HostResourceSnapshot(
+            logical_cpus=16,
+            available_memory_mb=32768,
+            cpu_idle_percent=5,
+        ),
+    )
+
+    assert scheduler.effective_concurrency_limit == 1

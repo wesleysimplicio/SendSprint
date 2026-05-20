@@ -40,6 +40,13 @@ Also auto-invoke when user mentions sprint id + Jira/ADO + repo path together (i
 
 ## Multi-agent dispatch (Ralph loop)
 
+Claude Code uses the official Ralph Wiggum plugin as the standard long-running
+loop for SendSprint tasks:
+
+```bash
+/ralph-loop "<prompt>" --max-iterations <n> --completion-promise "<text>"
+```
+
 On the fix loop (Step 9) and after every edit, dispatch specialized agents **in parallel** (single message, multiple `Agent` calls):
 
 | Trigger | Agents (parallel) |
@@ -52,6 +59,8 @@ On the fix loop (Step 9) and after every edit, dispatch specialized agents **in 
 | Tests missing | `everything-claude-code:tdd-guide` |
 | E2E web suite | `everything-claude-code:e2e-runner` |
 | Sprint exploration | `Explore` (quick/medium/thorough) |
+
+Before dispatch, size parallel fan-out with `HostResourceSnapshot` + `AgentFanoutPolicy`; reduce concurrency when CPU is busy or available memory is low.
 
 Exit gate (Ralph): all DoD checks green **AND** `EXIT_SIGNAL: true` in `RALPH_STATUS` block. Otherwise loop again until `MAX_FIX_LOOPS`.
 

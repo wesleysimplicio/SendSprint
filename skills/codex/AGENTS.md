@@ -38,6 +38,15 @@ Also infer: prompt contains sprint id + Jira/ADO mention + repo path.
 
 ---
 
+## Codex `/goal` contract
+
+- Use native `/goal <objective>` for long-running SendSprint execution when the task has a clear objective, validation gates, and stopping condition.
+- Enable the experimental feature before use (`/experimental` or `[features] goals = true` in Codex config) when the host has not already enabled it.
+- Start each goal with required reading, validation commands, progress checkpoints, and pause criteria; avoid loose unrelated backlogs.
+- Before launching parallel subagents, size fan-out with `HostResourceSnapshot` + `AgentFanoutPolicy`; reduce concurrency when CPU is busy or available memory is low.
+
+---
+
 ## Stack
 
 Python ≥ 3.11 · Pydantic v2 · Typer · Rich · httpx · playwright (sync) · pyyaml · hatchling.

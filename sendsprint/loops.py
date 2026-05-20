@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -35,12 +36,24 @@ class LoopContract(BaseModel):
     acceptance_criteria: list[str] = Field(default_factory=list)
     validation_gates: list[str] = Field(default_factory=list)
     max_attempts: int = 5
+    completion_promise: str = "COMPLETE"
 
     @property
     def display_name(self) -> str:
         if self.kind == "ralph-wiggum":
             return "Claude Code Ralph Wiggum"
         return "Codex /goal"
+
+    @property
+    def command_hint(self) -> str:
+        """Return the native slash command for the selected loop runtime."""
+        if self.kind == "ralph-wiggum":
+            return (
+                f"/ralph-loop {json.dumps(self.objective)} "
+                f"--max-iterations {self.max_attempts} "
+                f"--completion-promise {json.dumps(self.completion_promise)}"
+            )
+        return f"/goal {self.objective}"
 
 
 class LoopReport(BaseModel):

@@ -161,6 +161,12 @@ default sprint, scope) live in `~/.config/sendsprint/profile.yaml` (chmod 600).
 | Hermes | `skills/hermes/hermes.md` | per-tool location |
 | Openclaw | `skills/openclaw/openclaw.md` | per-tool location |
 
+### Long-running loop standard
+
+- Codex CLI uses native `/goal <objective>` for durable SendSprint runs with explicit validation gates and stopping conditions.
+- Claude Code uses the Ralph Wiggum plugin command `/ralph-loop "<prompt>" --max-iterations <n> --completion-promise "<text>"`; this is the default Claude loop, not an ad hoc retry script.
+- Before launching multiple agents, compute a safe fan-out with `HostResourceSnapshot` and `AgentFanoutPolicy`, then reduce concurrency under CPU pressure or low available memory.
+
 ---
 
 ## 5. Code patterns (HARD RULES)

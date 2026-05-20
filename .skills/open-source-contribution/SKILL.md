@@ -19,6 +19,13 @@ description: Use when SendSprint must run open-source contribution cycles: scout
 7. Monitor and rework: watch CI, review comments, conflicts, and upstream duplicates; patch minimally and rerun focused validation, or close/defer if upstream solved it.
 8. Learn: persist only reusable signals, duplicate markers, validation commands, maintainer preferences, and next safe targets in SendSprint operational memory.
 
+## Long-Running Execution
+
+- Codex runtime uses native `/goal <objective>` for durable work with explicit stopping condition, required reading, validation gates, checkpoint log, and pause criteria.
+- Claude Code runtime uses the Ralph Wiggum plugin command `/ralph-loop "<prompt>" --max-iterations <n> --completion-promise "<text>"`; do not substitute a generic loop when Ralph is available.
+- Before fan-out, size concurrency with `HostResourceSnapshot` + `AgentFanoutPolicy`; reduce agents when CPU is busy or available memory is low.
+- Parallel work must use isolated worktrees, non-overlapping file/issue ownership, and the dedupe gate per candidate.
+
 ## Patterns
 
 - Batch work is a queue of individually gated candidates, not permission to bypass dedupe.

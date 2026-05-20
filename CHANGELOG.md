@@ -6,6 +6,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-05-20
+
+### Added
+
+- Resource-aware fan-out policy for long-running Codex `/goal` and Claude Code
+  Ralph Wiggum loops, sizing parallel agents from CPU and available memory.
+- Native command hints for `LoopContract`, keeping Codex on `/goal` and Claude
+  Code on `/ralph-loop` with completion promises.
+
 ## [0.17.0] - 2026-05-20
 
 ### Added
