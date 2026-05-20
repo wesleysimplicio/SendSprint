@@ -8,6 +8,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Cross-platform `sendsprint/platform.py` module with `PlatformInfo` model,
+  `detect_platform()`, `is_windows()`, `is_unix()`, `normalize_path()`,
+  `vendor_bin()`, `shell_command()`, and `venv_activate_cmd()` helpers for
+  Windows/macOS/Linux compatibility. Includes `SENDSPRINT_FORCE_WIN` env var
+  for testing Windows paths on Unix (#110).
+- 18 tests in `tests/test_platform.py` covering detection, path normalization,
+  vendor-bin resolution, shell-command wrapping (cmd/pwsh), and venv activation
+  on both platforms (#110).
+- Enhanced `.github/copilot-instructions.md` with SendSprint flow overview,
+  quality gate docs, Windows PowerShell install path, cross-platform guidance,
+  validation recipes for all stacks (Python/Node/Go/Rust) on Windows, and
+  documentation that `/goal` and `/ralph-loop` are optional Codex/Claude-only
+  accelerators (#110).
+
 - Automatic rework loop module `sendsprint/rework.py` with `FailureClass` enum
   (correctable, environmental, human_required), `ReworkAttempt` model,
   `ReworkOutcome` enum, `ReworkResult` model, `ReworkLoop` class
