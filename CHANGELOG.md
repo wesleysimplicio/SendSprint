@@ -8,6 +8,29 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Worker runtime package `sendsprint/workers/` with Python fallback and
+  optional Go accelerator for fan-out, watchdogs, and non-blocking
+  execution (#107, epic #105):
+  `PythonWorker` — always-available asyncio-based worker implementing the
+  `WorkerCapability` contract with bounded queue, start/stop lifecycle,
+  cancel, heartbeat, status snapshot, log tail, CPU nice, memory soft-limit,
+  and fan-out concurrency cap.
+  `GoWorkerSpec` — informational Pydantic model documenting the Go worker
+  JSON protocol (NDJSON over stdio/localhost/named pipe) with request and
+  response JSON schemas.
+  `GoWorkerProxy` — subprocess wrapper that speaks the Go protocol when the
+  `sendsprint-worker` binary is on PATH.
+  `detect_go_worker()` — checks binary availability.
+  `resolve_worker()` — returns `GoWorkerProxy` if available, else
+  `PythonWorker` (Python fallback always works).
+- 38 tests in `tests/test_workers.py` covering worker lifecycle,
+  queue/complete, cancel (running/unknown/terminal), heartbeat, status
+  (all/single/unknown), log tail, capability descriptor, task timeout,
+  executor error, Go spec defaults/schema/frozen/roundtrip, detection
+  mock, proxy capability/availability/send variants (ok/error/nonzero
+  exit/invalid JSON), proxy queue/cancel, resolver fallback/preference/
+  concurrency, and package public API imports (#107).
+
 - Localhost web control plane API at `/api/runs` with enriched run listing
   (status, autonomy level, task, branch, readiness score), run detail with
   quality gate reports, evidence bundles, and logs (#102).
