@@ -6,6 +6,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Control-plane contracts module `sendsprint/contracts.py` for the runtime
+  split (#106, epic #105): `RunCommand` / `RunEvent` Pydantic wire models,
+  `WorkerCapability` descriptor, `CommandType` / `EventType` / `WorkerStack`
+  enums, `ControlPlaneContract` class documenting Python-owned APIs (CLI,
+  API server, workspace loader, planning, quality gates, operational memory,
+  PR publishing), and `to_json` / `from_json` serialization helpers with
+  backwards-compatible defaults.
+- 24 tests in `tests/test_contracts.py` covering serialization roundtrips,
+  backwards compatibility with missing fields, extra-field preservation,
+  enum completeness, and error cases (#106).
+
 ## [0.19.0] - 2026-05-20
 
 ### Added
