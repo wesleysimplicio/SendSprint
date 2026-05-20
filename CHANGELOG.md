@@ -8,6 +8,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Marketing domain adapter in `sendsprint/actions/marketing_adapter.py` as the
+  first non-code pilot for the generic action lifecycle (#120, #122):
+  `MARKETING_DOMAIN` descriptor, `MarketingDomainAdapter` implementing
+  `DomainAdapter`, and 7 action templates (`campaign_brief`, `landing_page_copy`,
+  `email_sequence`, `social_posts`, `competitor_scan`, `content_calendar`,
+  `launch_checklist`) with typed inputs, validation checklists (brand review,
+  claims/risk review, link checks, UTM verification), and evidence requirements.
+  External publishing disabled by default; requires explicit opt-in.
+- 83 tests in `tests/test_marketing_actions.py` covering templates, adapter
+  metadata, all lifecycle phases, publish opt-in/opt-out, rework, learning,
+  full lifecycle integration, no-PR-assumption checks, and JSON serialization
+  snapshots (#122).
+
 - Central `DeliveryQualityGate` in `sendsprint/quality_gate.py` consolidating
   lint, tests, security, coverage, Playwright, and diff-hygiene checks into a
   single `pass` / `needs_rework` / `needs_human_approval` verdict before publish

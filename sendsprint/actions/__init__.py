@@ -12,6 +12,12 @@ from sendsprint.actions.lifecycle import (
     Objective,
     ValidationResult,
 )
+from sendsprint.actions.marketing_adapter import (
+    MARKETING_DOMAIN,
+    MARKETING_TEMPLATES,
+    MarketingActionTemplate,
+    MarketingDomainAdapter,
+)
 
 __all__ = [
     "Action",
@@ -22,6 +28,10 @@ __all__ = [
     "DomainDescriptor",
     "ExecutionStep",
     "LearningRecord",
+    "MARKETING_DOMAIN",
+    "MARKETING_TEMPLATES",
+    "MarketingActionTemplate",
+    "MarketingDomainAdapter",
     "Objective",
     "ValidationResult",
 ]
