@@ -8,6 +8,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Delivery readiness score module `sendsprint/readiness_score.py` with
+  `ScoreComponent` model (name, weight, raw_score 0-100, details),
+  `ReadinessVerdict` enum (auto_publish, needs_human_approval, blocked),
+  `DeliveryReadinessScore` calculator class (calculate, get_verdict,
+  format_summary, evaluate), default six-component weights (quality_gate,
+  diff_verifier, validations, evidence_completeness, ci_status, review_status),
+  configurable thresholds (auto-publish >= 80, human approval >= 50, blocked
+  below 50), and `build_default_components` factory helper. Calculation is
+  deterministic: no randomness, no timestamps (#101).
+- 34 tests in `tests/test_readiness_score.py` covering model validation,
+  bounds enforcement, frozen immutability, weighted score math, determinism
+  (100-iteration stability), all three verdict paths, custom thresholds,
+  invalid threshold rejection, summary formatting, evaluate convenience
+  method, factory helper, and default weights constant (#101).
+
 - Marketing domain adapter in `sendsprint/actions/marketing_adapter.py` as the
   first non-code pilot for the generic action lifecycle (#120, #122):
   `MARKETING_DOMAIN` descriptor, `MarketingDomainAdapter` implementing
