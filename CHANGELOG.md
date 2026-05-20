@@ -8,6 +8,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Optional Rust accelerator boundary `sendsprint/accelerators/` with Python
+  fallback for hot-path operations: `fast_scan()`, `fast_diff()`,
+  `fast_dedupe()`, `fast_receipt_hash()` (#108).
+  - `python_impl.py` — pure-Python implementations, always available.
+  - `rust_bridge.py` — `RustBridge` class wrapping `sendsprint-accel` CLI
+    binary via subprocess; falls back to Python on missing binary, timeout,
+    or parse error.
+  - `resolver.py` — `resolve_accelerator()` picks the best backend at
+    runtime; includes `benchmark()` helper comparing Python vs Rust timing.
+  - `fast_receipt_hash` verified identical to `yool.receipts.sha256_canonical`.
+- 40 tests in `tests/test_accelerators.py` covering all four hot paths,
+  RustBridge fallback/mock scenarios, detection, resolver, and benchmark.
+
 - Tri-agent status relay module `sendsprint/status_relay.py` with
   `RunEventEmitter` (thread-safe structured event emitter),
   `RunSnapshot` (read-only point-in-time run state model),
