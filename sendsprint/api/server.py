@@ -11,6 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sendsprint import __version__
 from sendsprint.api.routes import auth as auth_routes
+from sendsprint.api.security import (
+    LocalAuthMiddleware,
+    OriginCheckMiddleware,
+    generate_operator_token,
+)
 from sendsprint.api.routes import control_plane as cp_routes
 from sendsprint.api.routes import dashboard as dashboard_routes
 from sendsprint.api.routes import operator as op_routes
@@ -23,6 +28,8 @@ from sendsprint.api.schemas import HealthResponse
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     events.bind_loop(asyncio.get_running_loop())
+    token = generate_operator_token()
+    print(f"\n  Operator token: {token}\n")  # noqa: T201 — intentional console output
     yield
 
 
@@ -35,9 +42,18 @@ def create_app() -> FastAPI:
         ),
         lifespan=_lifespan,
     )
+    # Security middlewares — order: origin check → auth → CORS.
+    # Starlette applies middlewares in reverse add-order, so add CORS last
+    # (processed first) to set response headers, then auth, then origin.
+    app.add_middleware(OriginCheckMiddleware)
+    app.add_middleware(LocalAuthMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "http://[::1]:*",
+        ],
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -71,7 +87,7 @@ def main() -> None:
     """python -m sendsprint.api"""
     import uvicorn
 
-    host = os.getenv("SENDSPRINT_API_HOST", "0.0.0.0")
+    host = os.getenv("SENDSPRINT_API_HOST", "127.0.0.1")
     port = int(os.getenv("SENDSPRINT_API_PORT", "8765"))
     uvicorn.run("sendsprint.api.server:app", host=host, port=port, reload=False)
 
