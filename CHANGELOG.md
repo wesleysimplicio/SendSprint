@@ -8,6 +8,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Stack-specific validation recipes in `sendsprint/validation_recipes.py`:
+  `ValidationRecipe` Pydantic model, built-in recipes for Python (pytest, ruff),
+  Go (go test, go vet), Rust (cargo test, cargo clippy), Node (npm test, npm
+  run build, Playwright), and Copilot (instructions file reference) (#112).
+- `RecipeSelector` auto-detects applicable recipes from a `TechFingerprint`,
+  with de-duplication and copilot instructions file detection.
+- `format_for_pr_body()` renders selected recipes as Markdown for PR body
+  inclusion without leaking internal process details.
+- Each recipe includes Windows-specific shell and toolchain notes.
+- 31 tests in `tests/test_validation_recipes.py` covering model basics,
+  built-in recipe constants, recipe selection by detected tech (including
+  framework-to-stack mapping and de-duplication), copilot file detection,
+  `from_path` factory, PR body snapshot tests, and internal process leak
+  guard (#112).
 - Control-plane contracts module `sendsprint/contracts.py` for the runtime
   split (#106, epic #105): `RunCommand` / `RunEvent` Pydantic wire models,
   `WorkerCapability` descriptor, `CommandType` / `EventType` / `WorkerStack`
