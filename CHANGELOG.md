@@ -6,6 +6,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-05-20
+
+### Added
+
+- First-class evidence bundles with `EvidenceItemType`, `EvidenceItem`,
+  `EvidenceBundle`, and `BundleManager` classes for structured run evidence
+  capture and persistence to `.sendsprint/evidence/<run_id>/` (#96).
+- Evidence items support types: command, log, screenshot, coverage, risk,
+  decision, with arbitrary metadata and timestamps.
+- `BundleManager` provides create/add/finalize/export/summarize lifecycle,
+  plus `load_bundle`, `list_bundles` queries.
+- Bundle links to tuple, receipt, and yool IDs for catalog traceability.
+- `summarize_for_pr` generates Markdown ready for PR body consumption.
+
 ## [0.17.0] - 2026-05-20
 
 ### Added
