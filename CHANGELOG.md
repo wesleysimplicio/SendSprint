@@ -6,6 +6,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-05-20
+
+### Added
+
+- Autonomy level field on `RunState` and `RunReport` models, persisted in run
+  state JSON and surfaced in the executive sprint summary (#94).
+- `RunStateStore.load_or_create` accepts `autonomy_level` parameter, forwarded
+  from `SprintFlow` autonomy policy.
+- 29 tests in `tests/test_autonomy.py` covering policy allow/deny per level,
+  `AutonomyDenied` raise, `side_effects` matrix, `parse_autonomy_level` edge
+  cases, run state persistence, report serialization, and executive report
+  rendering.
+
 ## [0.17.2] - 2026-05-20
 
 ### Added

@@ -172,6 +172,7 @@ class SprintFlow:
         report = RunReport(
             workspace=self.workspace.name if self.workspace else "single-repo",
             scope_mode=self.scope.mode,
+            autonomy_level=self.autonomy_policy.level,
         )
 
         # --- Step 1: Read sprint ---
@@ -256,6 +257,7 @@ class SprintFlow:
                 resolved_run_id or "run",
                 source=self.operator.source,
                 sprint_id=str(sprint.id),
+                autonomy_level=self.autonomy_policy.level,
             )
             state_store.save(state)
             resolved_run_id = state.run_id
@@ -692,6 +694,7 @@ class SprintFlow:
         return RunReport(
             workspace=str(payload.get("workspace_name") or "single-repo"),
             scope_mode=str(payload.get("scope_mode") or self.scope.mode),
+            autonomy_level=self.autonomy_policy.level,
         )
 
     def _runtime_output(

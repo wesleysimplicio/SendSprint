@@ -39,6 +39,7 @@ def render_executive_report(
 
 - Workspace: {report.workspace}
 - Sprint: {report.sprint_name or report.sprint_id or "n/a"}
+- Autonomy level: {report.autonomy_level}
 - Delivered PRs: {delivered}
 - Failed: {report.failed}
 - Summary: {report.summary or "n/a"}

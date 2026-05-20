@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from sendsprint.policy import AutonomyLevel
+
 StepStatus = Literal["pending", "running", "ok", "failed", "skipped"]
 Severity = Literal["info", "low", "medium", "high", "critical"]
 PrProvider = Literal["github", "azuredevops"]
@@ -85,5 +87,6 @@ class RunReport(BaseModel):
     finished_at: datetime | None = None
     steps: list[StepReport] = Field(default_factory=list)
     prs: list[PrInfo] = Field(default_factory=list)
+    autonomy_level: AutonomyLevel = "plan"
     failed: bool = False
     summary: str | None = None

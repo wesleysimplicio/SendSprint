@@ -8,6 +8,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from sendsprint.policy import AutonomyLevel
+
 
 def stable_run_id(*parts: object) -> str:
     """Build a deterministic run id from user-visible inputs."""
@@ -22,6 +24,7 @@ class RunState(BaseModel):
     run_id: str
     source: str
     sprint_id: str
+    autonomy_level: AutonomyLevel = "plan"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     planned: list[str] = Field(default_factory=list)
@@ -57,11 +60,23 @@ class RunStateStore:
         safe = "".join(ch for ch in run_id if ch.isalnum() or ch in {"-", "_"}).strip("-_")
         return self.runs_dir / f"{safe or 'run'}.json"
 
-    def load_or_create(self, run_id: str, *, source: str, sprint_id: str) -> RunState:
+    def load_or_create(
+        self,
+        run_id: str,
+        *,
+        source: str,
+        sprint_id: str,
+        autonomy_level: AutonomyLevel = "plan",
+    ) -> RunState:
         path = self.path_for(run_id)
         if path.exists():
             return RunState.model_validate_json(path.read_text(encoding="utf-8"))
-        return RunState(run_id=run_id, source=source, sprint_id=sprint_id)
+        return RunState(
+            run_id=run_id,
+            source=source,
+            sprint_id=sprint_id,
+            autonomy_level=autonomy_level,
+        )
 
     def save(self, state: RunState) -> Path:
         self.runs_dir.mkdir(parents=True, exist_ok=True)
