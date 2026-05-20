@@ -8,6 +8,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Non-code domain quality gates module `sendsprint/domain_quality.py` with
+  `DomainCheckType` enum (checklist, review, source, risk),
+  `DomainQualityCheck` model, `ChecklistItem`, `ReviewGateInput`,
+  `SourceEvidence`, `RiskAssessment` input models, `ApprovalPolicy` model
+  (required_approvals, auto_approve_threshold, escalation_path,
+  require_explicit_approval_for_external), and `DomainQualityGate` class
+  with `register_checks()`, `run_domain_checks()`, `evaluate()`, and
+  individual gate runners for each check type. Produces `GateReport` verdicts
+  compatible with existing `DeliveryQualityGate`. Missing evidence blocks
+  readiness with actionable reasons; external-facing work requires explicit
+  approval by default. Software quality gates unchanged (#123).
+- 53 tests in `tests/test_domain_quality.py` covering model validation,
+  serialization, all four gate types (checklist, review, source, risk),
+  aggregate runner, verdict logic, approval policies, marketing-style
+  end-to-end validation, software gate compatibility, and error message
+  snapshots (#123).
+
 - Worker runtime package `sendsprint/workers/` with Python fallback and
   optional Go accelerator for fan-out, watchdogs, and non-blocking
   execution (#107, epic #105):
