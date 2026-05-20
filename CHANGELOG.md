@@ -8,6 +8,55 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Operator action endpoints at `/api/runs/{run_id}/actions/{action}` for
+  pause, resume, cancel, rerun failed step, and approve publish, with
+  autonomy-level gating, confirmation requirement for destructive actions
+  (cancel), and control command relay integration (#104).
+- Audit trail module `sendsprint/audit.py` with `AuditEntry` (frozen Pydantic
+  model: operator, action, run_id, timestamp, result, detail) and `AuditLog`
+  class (thread-safe append-only storage with query-by-run/operator/action
+  and JSON export). Module-level singleton `audit_log` shared by API routes.
+- Audit query endpoint `GET /api/runs/{run_id}/audit` returning recorded
+  operator actions with timestamps (#104).
+- 38 tests in `tests/test_operator_actions.py` covering all five action
+  endpoints, autonomy blocking (observe/plan/execute/pr levels), confirmation
+  gate for destructive cancel, state validation (409 on invalid transitions),
+  audit recording and query, control command relay integration, and AuditEntry/
+  AuditLog unit tests (#104).
+
+- Node dashboard and Playwright lane boundary specifications in
+  `sendsprint/dashboard_spec.py` (#109):
+  `NodeDashboardSpec` (dashboard scope, consumed APIs, forbidden actions),
+  `PlaywrightLaneSpec` (evidence capture isolation, flow, allowed/forbidden),
+  `DashboardEventProtocol` (SSE event types, payload schemas, delivery
+  guarantees), `SSEEventType` / `SSEEventPayload` (canonical event wire
+  format), `NodeDashboardScope` and `PlaywrightEvidenceKind` enums.
+  Node is UI-only — it consumes run/event APIs and never owns orchestration.
+  Playwright evidence stays isolated from Python worker internals.
+- Architecture doc `.specs/architecture/DASHBOARD.md` documenting Node
+  dashboard scope (UI only, no orchestration), API consumption pattern,
+  SSE event protocol, Playwright evidence isolation, and evidence flow (#109).
+- 44 tests in `tests/test_dashboard_spec.py` covering SSE event type
+  completeness, payload validation, protocol invariants, dashboard scope
+  contracts, Playwright isolation rules, serialization roundtrips, and
+  cross-spec consistency (#109).
+
+- Durable per-run event store `sendsprint/event_store.py` with NDJSON-backed
+  append-only log at `.sendsprint/runs/<run_id>/events.ndjson`, compact
+  `RunSnapshotData` model persisted to `snapshot.json`, cursor-based replay
+  (by sequence number or timestamp), `RetentionPolicy` model with configurable
+  `max_events`/`max_age_days`/`compact_after_days`, compaction that rewrites
+  the NDJSON file, automatic periodic snapshots, and disk-based cold-start
+  recovery so events survive API restarts. Thread-safe for concurrent
+  append and replay (#114).
+- 41 tests in `tests/test_event_store.py` covering model validation,
+  serialization roundtrips, append/seq tracking, NDJSON file content,
+  path-traversal safety, restart-like reload with replay verification,
+  cursor replay (by seq, by timestamp, precedence), snapshot lifecycle
+  (empty/populated/write/load/auto-interval), compaction (age cutoff,
+  max_events cap, NDJSON rewrite, seq update, noop, default policy),
+  and concurrent thread safety (parallel appends, append+replay) (#114).
+
 - Audited control-command queue module `sendsprint/command_queue.py` with
   `CommandStatus` enum (queued, accepted, rejected, applied, failed),
   `RunControlCommand` Pydantic model (command_id, command_type, run_id,
